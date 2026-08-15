@@ -14,7 +14,7 @@ class DashboardKanbanScreen extends StatefulWidget {
 
   const DashboardKanbanScreen({
     super.key,
-    this.workspaceId = 'demo-workspace-id',
+    this.workspaceId = '00000000-0000-0000-0000-000000000001',
   });
 
   @override
@@ -79,7 +79,14 @@ class _DashboardKanbanScreenState extends State<DashboardKanbanScreen> {
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Text(state.message, style: const TextStyle(color: Colors.red)),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                                    child: Text(
+                                      state.message,
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(color: Colors.red),
+                                    ),
+                                  ),
                                   const SizedBox(height: 12),
                                   ElevatedButton(
                                     onPressed: () {

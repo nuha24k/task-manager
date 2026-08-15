@@ -76,5 +76,3 @@ WITH CHECK (auth.uid() = user_id);
 -- 8. Enable Realtime Engine for Tasks & Comments Tables
 ALTER PUBLICATION supabase_realtime ADD TABLE public.tasks;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.task_comments;
-
-
