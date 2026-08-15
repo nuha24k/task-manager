@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'injection.dart';
 import 'presentation/blocs/task_bloc.dart';
 import 'presentation/pages/splash_screen.dart';
@@ -10,8 +11,10 @@ import 'presentation/pages/dashboard_kanban_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Note: Standard Supabase setup (Can be configured with real project URL & ANON_KEY)
-  // await Supabase.initialize(url: 'YOUR_SUPABASE_URL', anonKey: 'YOUR_SUPABASE_KEY');
+  await Supabase.initialize(
+    url: 'https://qffxmdfatpvfjaoqoqod.supabase.co',
+    anonKey: 'sb_publishable_7vtyaW7IciX5qB3m-9bw8g_ZOCWMsRd',
+  );
 
   await initInjection();
 

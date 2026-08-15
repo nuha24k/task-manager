@@ -42,20 +42,25 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     await Future.delayed(const Duration(seconds: 2));
     if (!mounted) return;
 
-    final session = sl<SupabaseClient>().auth.currentSession;
-    if (session != null) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => BlocProvider(
-            create: (_) => sl<TaskBloc>(),
-            child: const DashboardKanbanScreen(),
+    try {
+      final session = sl<SupabaseClient>().auth.currentSession;
+      if (session != null) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => BlocProvider(
+              create: (_) => sl<TaskBloc>(),
+              child: const DashboardKanbanScreen(),
+            ),
           ),
-        ),
-      );
-    } else {
-      Navigator.pushReplacementNamed(context, '/login');
+        );
+        return;
+      }
+    } catch (_) {
+      // Catch error if Supabase is not initialized yet and navigate safely to login screen
     }
+
+    Navigator.pushReplacementNamed(context, '/login');
   }
 
   @override
