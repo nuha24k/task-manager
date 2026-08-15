@@ -6,13 +6,15 @@ import '../theme/app_colors.dart';
 import '../widgets/task_card.dart';
 import '../widgets/floating_bottom_nav_bar.dart';
 import '../widgets/create_task_bottom_sheet.dart';
+import 'task_detail_screen.dart';
+import 'calendar_meeting_screen.dart';
 
 class DashboardKanbanScreen extends StatefulWidget {
   final String workspaceId;
 
   const DashboardKanbanScreen({
     super.key,
-    this.workspaceId = 'demo-workspace-id',
+    this.workspaceId = '00000000-0000-0000-0000-000000000001',
   });
 
   @override
@@ -42,6 +44,15 @@ class _DashboardKanbanScreenState extends State<DashboardKanbanScreen> {
     );
   }
 
+  void _navigateToDetail(Task task) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TaskDetailScreen(task: task),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -49,79 +60,92 @@ class _DashboardKanbanScreenState extends State<DashboardKanbanScreen> {
       body: SafeArea(
         child: Stack(
           children: [
-            Column(
+            IndexedStack(
+              index: _navIndex == 1 ? 1 : 0,
               children: [
-                _buildHeader(),
-                Expanded(
-                  child: BlocBuilder<TaskBloc, TaskState>(
-                    builder: (context, state) {
-                      if (state is TaskLoading) {
-                        return const Center(
-                          child: CircularProgressIndicator(color: AppColors.blackButton),
-                        );
-                      }
-                      if (state is TaskError) {
-                        return Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(state.message, style: const TextStyle(color: Colors.red)),
-                              const SizedBox(height: 12),
-                              ElevatedButton(
-                                onPressed: () {
-                                  context.read<TaskBloc>().add(SubscribeToBoard(widget.workspaceId));
-                                },
-                                child: const Text('Retry'),
+                Column(
+                  children: [
+                    _buildHeader(),
+                    Expanded(
+                      child: BlocBuilder<TaskBloc, TaskState>(
+                        builder: (context, state) {
+                          if (state is TaskLoading) {
+                            return const Center(
+                              child: CircularProgressIndicator(color: AppColors.blackButton),
+                            );
+                          }
+                          if (state is TaskError) {
+                            return Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                                    child: Text(
+                                      state.message,
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(color: Colors.red),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  ElevatedButton(
+                                    onPressed: () {
+                                      context.read<TaskBloc>().add(SubscribeToBoard(widget.workspaceId));
+                                    },
+                                    child: const Text('Retry'),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                        );
-                      }
-                      
-                      List<Task> tasks = [];
-                      if (state is TaskLoaded) {
-                        tasks = state.tasks;
-                      }
+                            );
+                          }
+                          
+                          List<Task> tasks = [];
+                          if (state is TaskLoaded) {
+                            tasks = state.tasks;
+                          }
 
-                      return RefreshIndicator(
-                        onRefresh: () async {
-                          context.read<TaskBloc>().add(SubscribeToBoard(widget.workspaceId));
-                        },
-                        child: ListView(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          children: [
-                            const SizedBox(height: 12),
-                            _buildHeroBanner(),
-                            const SizedBox(height: 24),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          return RefreshIndicator(
+                            onRefresh: () async {
+                              context.read<TaskBloc>().add(SubscribeToBoard(widget.workspaceId));
+                            },
+                            child: ListView(
+                              padding: const EdgeInsets.symmetric(horizontal: 20),
                               children: [
-                                const Text(
-                                  'Your task',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.darkText,
-                                  ),
+                                const SizedBox(height: 12),
+                                _buildHeroBanner(),
+                                const SizedBox(height: 24),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text(
+                                      'Your task',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.darkText,
+                                      ),
+                                    ),
+                                    TextButton(
+                                      onPressed: () {},
+                                      child: const Text(
+                                        'See All',
+                                        style: TextStyle(color: AppColors.subText, fontSize: 13),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                TextButton(
-                                  onPressed: () {},
-                                  child: const Text(
-                                    'See All',
-                                    style: TextStyle(color: AppColors.subText, fontSize: 13),
-                                  ),
-                                ),
+                                const SizedBox(height: 8),
+                                _buildKanbanView(tasks),
+                                const SizedBox(height: 100), // Spacing for floating navbar
                               ],
                             ),
-                            const SizedBox(height: 8),
-                            _buildKanbanView(tasks),
-                            const SizedBox(height: 100), // Spacing for floating navbar
-                          ],
-                        ),
-                      );
-                    },
-                  ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ),
+                const CalendarMeetingScreen(),
               ],
             ),
             Positioned(
@@ -265,12 +289,20 @@ class _DashboardKanbanScreenState extends State<DashboardKanbanScreen> {
             color: Colors.transparent,
             child: SizedBox(
               width: MediaQuery.of(context).size.width - 40,
-              child: TaskCard(task: task, backgroundColor: bgColor),
+              child: TaskCard(
+                task: task,
+                backgroundColor: bgColor,
+                onTap: () => _navigateToDetail(task),
+              ),
             ),
           ),
           childWhenDragging: Opacity(
             opacity: 0.3,
-            child: TaskCard(task: task, backgroundColor: bgColor),
+            child: TaskCard(
+              task: task,
+              backgroundColor: bgColor,
+              onTap: () => _navigateToDetail(task),
+            ),
           ),
           child: DragTarget<Task>(
             onAcceptWithDetails: (details) {
@@ -287,6 +319,7 @@ class _DashboardKanbanScreenState extends State<DashboardKanbanScreen> {
               return TaskCard(
                 task: task,
                 backgroundColor: bgColor,
+                onTap: () => _navigateToDetail(task),
               );
             },
           ),

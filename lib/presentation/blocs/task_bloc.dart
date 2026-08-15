@@ -18,13 +18,6 @@ class SubscribeToBoard extends TaskEvent {
   List<Object?> get props => [workspaceId];
 }
 
-class TaskListUpdated extends TaskEvent {
-  final List<Task> tasks;
-  const TaskListUpdated(this.tasks);
-  @override
-  List<Object?> get props => [tasks];
-}
-
 class CreateTaskRequested extends TaskEvent {
   final Task task;
   const CreateTaskRequested(this.task);
@@ -85,8 +78,6 @@ class TaskBloc extends Bloc<TaskEvent, TaskState> {
   final ReorderTaskUseCase reorderTaskUseCase;
   final DeleteTaskUseCase deleteTaskUseCase;
 
-  StreamSubscription<List<Task>>? _tasksSubscription;
-
   TaskBloc({
     required this.watchTasksUseCase,
     required this.createTaskUseCase,
@@ -94,27 +85,27 @@ class TaskBloc extends Bloc<TaskEvent, TaskState> {
     required this.deleteTaskUseCase,
   }) : super(TaskInitial()) {
     on<SubscribeToBoard>(_onSubscribeToBoard);
-    on<TaskListUpdated>(_onTaskListUpdated);
     on<CreateTaskRequested>(_onCreateTaskRequested);
     on<TaskMoved>(_onTaskMoved);
     on<DeleteTaskRequested>(_onDeleteTaskRequested);
   }
 
-  void _onSubscribeToBoard(SubscribeToBoard event, Emitter<TaskState> emit) {
+  Future<void> _onSubscribeToBoard(
+    SubscribeToBoard event,
+    Emitter<TaskState> emit,
+  ) async {
     emit(TaskLoading());
-    _tasksSubscription?.cancel();
-    _tasksSubscription = watchTasksUseCase(event.workspaceId).listen(
-      (List<Task> tasks) {
-        add(TaskListUpdated(tasks));
-      },
-      onError: (Object error) {
-        emit(TaskError(error.toString()));
-      },
-    );
-  }
-
-  void _onTaskListUpdated(TaskListUpdated event, Emitter<TaskState> emit) {
-    emit(TaskLoaded(event.tasks));
+    try {
+      await emit.forEach<List<Task>>(
+        watchTasksUseCase(event.workspaceId),
+        onData: (tasks) => TaskLoaded(tasks),
+        onError: (error, stackTrace) => TaskError(error.toString()),
+      );
+    } catch (e) {
+      if (!emit.isDone) {
+        emit(TaskError(e.toString()));
+      }
+    }
   }
 
   Future<void> _onCreateTaskRequested(
@@ -123,7 +114,9 @@ class TaskBloc extends Bloc<TaskEvent, TaskState> {
   ) async {
     final result = await createTaskUseCase(event.task);
     result.fold(
-      (failure) => emit(TaskError(failure.toString())),
+      (failure) {
+        if (!emit.isDone) emit(TaskError(failure.toString()));
+      },
       (_) {},
     );
   }
@@ -131,7 +124,7 @@ class TaskBloc extends Bloc<TaskEvent, TaskState> {
   Future<void> _onTaskMoved(TaskMoved event, Emitter<TaskState> emit) async {
     if (state is TaskLoaded) {
       final currentTasks = (state as TaskLoaded).tasks;
-      
+
       // Optimistic Update
       final updatedTasks = currentTasks.map((t) {
         if (t.id == event.taskId) {
@@ -153,9 +146,11 @@ class TaskBloc extends Bloc<TaskEvent, TaskState> {
 
       result.fold(
         (failure) {
-          // Rollback on failure
-          emit(TaskError('Reorder failed, rolling back: ${failure.toString()}', previousTasks: currentTasks));
-          emit(TaskLoaded(currentTasks));
+          if (!emit.isDone) {
+            // Rollback on failure
+            emit(TaskError('Reorder failed, rolling back: ${failure.toString()}', previousTasks: currentTasks));
+            emit(TaskLoaded(currentTasks));
+          }
         },
         (_) {},
       );
@@ -168,14 +163,10 @@ class TaskBloc extends Bloc<TaskEvent, TaskState> {
   ) async {
     final result = await deleteTaskUseCase(event.taskId);
     result.fold(
-      (failure) => emit(TaskError(failure.toString())),
+      (failure) {
+        if (!emit.isDone) emit(TaskError(failure.toString()));
+      },
       (_) {},
     );
-  }
-
-  @override
-  Future<void> close() {
-    _tasksSubscription?.cancel();
-    return super.close();
   }
 }

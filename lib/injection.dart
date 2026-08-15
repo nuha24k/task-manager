@@ -10,8 +10,9 @@ final sl = GetIt.instance;
 
 Future<void> initInjection({SupabaseClient? supabaseClient}) async {
   // External
-  final client = supabaseClient ?? Supabase.instance.client;
-  sl.registerLazySingleton<SupabaseClient>(() => client);
+  sl.registerLazySingleton<SupabaseClient>(
+    () => supabaseClient ?? Supabase.instance.client,
+  );
 
   // Data Sources
   sl.registerLazySingleton<TaskRemoteDataSource>(
