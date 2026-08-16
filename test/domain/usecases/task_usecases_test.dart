@@ -5,6 +5,8 @@ import 'package:task_management/domain/entities/task.dart';
 import 'package:task_management/domain/repositories/task_repository.dart';
 import 'package:task_management/domain/usecases/task_usecases.dart';
 
+import '../../helpers/dummy_data.dart';
+
 class MockTaskRepository extends Mock implements TaskRepository {}
 
 void main() {
@@ -14,20 +16,6 @@ void main() {
   late UpdateTaskUseCase updateTaskUseCase;
   late ReorderTaskUseCase reorderTaskUseCase;
   late DeleteTaskUseCase deleteTaskUseCase;
-
-  final tCreatedAt = DateTime.parse('2026-08-16T00:00:00.000Z');
-  final tUpdatedAt = DateTime.parse('2026-08-16T01:00:00.000Z');
-
-  final tTask = Task(
-    id: 't1',
-    workspaceId: 'ws1',
-    title: 'Domain Task',
-    status: TaskStatus.todo,
-    priority: TaskPriority.high,
-    position: 0,
-    createdAt: tCreatedAt,
-    updatedAt: tUpdatedAt,
-  );
 
   setUp(() {
     mockRepository = MockTaskRepository();

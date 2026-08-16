@@ -42,6 +42,11 @@ ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.task_comments ENABLE ROW LEVEL SECURITY;
 
 -- 6. RLS Policies for Tasks
+DROP POLICY IF EXISTS "Allow authenticated users to read tasks" ON public.tasks;
+DROP POLICY IF EXISTS "Allow authenticated users to insert tasks" ON public.tasks;
+DROP POLICY IF EXISTS "Allow authenticated users to update tasks" ON public.tasks;
+DROP POLICY IF EXISTS "Allow authenticated users to delete tasks" ON public.tasks;
+
 CREATE POLICY "Allow authenticated users to read tasks" 
 ON public.tasks FOR SELECT 
 TO authenticated 
@@ -50,7 +55,7 @@ USING (true);
 CREATE POLICY "Allow authenticated users to insert tasks" 
 ON public.tasks FOR INSERT 
 TO authenticated 
-WITH CHECK (auth.uid() = created_by);
+WITH CHECK (auth.uid() = created_by OR created_by IS NULL);
 
 CREATE POLICY "Allow authenticated users to update tasks" 
 ON public.tasks FOR UPDATE 
@@ -60,9 +65,12 @@ USING (true);
 CREATE POLICY "Allow authenticated users to delete tasks" 
 ON public.tasks FOR DELETE 
 TO authenticated 
-USING (auth.uid() = created_by);
+USING (auth.uid() = created_by OR created_by IS NULL);
 
 -- 7. RLS Policies for Task Comments
+DROP POLICY IF EXISTS "Allow authenticated users to read comments" ON public.task_comments;
+DROP POLICY IF EXISTS "Allow authenticated users to insert comments" ON public.task_comments;
+
 CREATE POLICY "Allow authenticated users to read comments" 
 ON public.task_comments FOR SELECT 
 TO authenticated 

@@ -2,9 +2,10 @@ import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fpdart/fpdart.dart' hide Task;
 import 'package:mocktail/mocktail.dart';
-import 'package:task_management/domain/entities/task.dart';
 import 'package:task_management/domain/usecases/task_usecases.dart';
 import 'package:task_management/presentation/blocs/task_bloc.dart';
+
+import '../../helpers/dummy_data.dart';
 
 class MockWatchTasksUseCase extends Mock implements WatchTasksUseCase {}
 class MockCreateTaskUseCase extends Mock implements CreateTaskUseCase {}
@@ -19,22 +20,6 @@ void main() {
   late MockReorderTaskUseCase mockReorderTaskUseCase;
   late MockDeleteTaskUseCase mockDeleteTaskUseCase;
   late TaskBloc taskBloc;
-
-  final tCreatedAt = DateTime.parse('2026-08-16T00:00:00.000Z');
-  final tUpdatedAt = DateTime.parse('2026-08-16T01:00:00.000Z');
-
-  final tTask = Task(
-    id: 't1',
-    workspaceId: 'ws1',
-    title: 'Test Task BLoC',
-    status: TaskStatus.todo,
-    priority: TaskPriority.high,
-    position: 0,
-    createdAt: tCreatedAt,
-    updatedAt: tUpdatedAt,
-  );
-
-  final List<Task> tTasks = [tTask];
 
   setUp(() {
     mockWatchTasksUseCase = MockWatchTasksUseCase();

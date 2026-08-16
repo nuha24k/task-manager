@@ -2,31 +2,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fpdart/fpdart.dart' hide Task;
 import 'package:mocktail/mocktail.dart';
 import 'package:task_management/data/datasources/task_remote_data_source.dart';
-import 'package:task_management/data/models/task_model.dart';
 import 'package:task_management/data/repositories/task_repository_impl.dart';
-import 'package:task_management/domain/entities/task.dart';
+
+import '../../helpers/dummy_data.dart';
 
 class MockTaskRemoteDataSource extends Mock implements TaskRemoteDataSource {}
 
 void main() {
   late MockTaskRemoteDataSource mockRemoteDataSource;
   late TaskRepositoryImpl repository;
-
-  final tCreatedAt = DateTime.parse('2026-08-16T00:00:00.000Z');
-  final tUpdatedAt = DateTime.parse('2026-08-16T01:00:00.000Z');
-
-  final tTaskModel = TaskModel(
-    id: 't1',
-    workspaceId: 'ws1',
-    title: 'Test Task',
-    status: TaskStatus.todo,
-    priority: TaskPriority.medium,
-    position: 0,
-    createdAt: tCreatedAt,
-    updatedAt: tUpdatedAt,
-  );
-
-  final List<TaskModel> tTaskModels = [tTaskModel];
 
   setUp(() {
     mockRemoteDataSource = MockTaskRemoteDataSource();

@@ -35,29 +35,37 @@ class _DashboardKanbanScreenState extends State<DashboardKanbanScreen> {
   }
 
   void _showCreateBottomSheet([Task? taskToEdit]) {
+    final taskBloc = context.read<TaskBloc>();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => CreateTaskBottomSheet(
-        workspaceId: widget.workspaceId,
-        taskToEdit: taskToEdit,
-        onTaskCreated: (task) {
-          if (taskToEdit != null) {
-            context.read<TaskBloc>().add(UpdateTaskRequested(task));
-          } else {
-            context.read<TaskBloc>().add(CreateTaskRequested(task));
-          }
-        },
+      builder: (ctx) => BlocProvider.value(
+        value: taskBloc,
+        child: CreateTaskBottomSheet(
+          workspaceId: widget.workspaceId,
+          taskToEdit: taskToEdit,
+          onTaskCreated: (task) {
+            if (taskToEdit != null) {
+              taskBloc.add(UpdateTaskRequested(task));
+            } else {
+              taskBloc.add(CreateTaskRequested(task));
+            }
+          },
+        ),
       ),
     );
   }
 
   void _navigateToDetail(Task task) {
+    final taskBloc = context.read<TaskBloc>();
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => TaskDetailScreen(task: task),
+        builder: (_) => BlocProvider.value(
+          value: taskBloc,
+          child: TaskDetailScreen(task: task),
+        ),
       ),
     );
   }

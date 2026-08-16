@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:fpdart/fpdart.dart' hide Task;
 import '../../domain/entities/task.dart';
 import '../../domain/usecases/task_usecases.dart';
 
@@ -123,12 +124,7 @@ class TaskBloc extends Bloc<TaskEvent, TaskState> {
     Emitter<TaskState> emit,
   ) async {
     final result = await createTaskUseCase(event.task);
-    result.fold(
-      (failure) {
-        if (!emit.isDone) emit(TaskError(failure.toString()));
-      },
-      (_) {},
-    );
+    _handleEitherFailure(result, emit);
   }
 
   Future<void> _onUpdateTaskRequested(
@@ -136,12 +132,7 @@ class TaskBloc extends Bloc<TaskEvent, TaskState> {
     Emitter<TaskState> emit,
   ) async {
     final result = await updateTaskUseCase(event.task);
-    result.fold(
-      (failure) {
-        if (!emit.isDone) emit(TaskError(failure.toString()));
-      },
-      (_) {},
-    );
+    _handleEitherFailure(result, emit);
   }
 
   Future<void> _onTaskMoved(TaskMoved event, Emitter<TaskState> emit) async {
@@ -184,7 +175,20 @@ class TaskBloc extends Bloc<TaskEvent, TaskState> {
     DeleteTaskRequested event,
     Emitter<TaskState> emit,
   ) async {
+    if (state is TaskLoaded) {
+      final currentTasks = (state as TaskLoaded).tasks;
+      final updatedTasks = currentTasks.where((t) => t.id != event.taskId).toList();
+      emit(TaskLoaded(updatedTasks));
+    }
+
     final result = await deleteTaskUseCase(event.taskId);
+    _handleEitherFailure(result, emit);
+  }
+
+  void _handleEitherFailure<T>(
+    Either<Exception, T> result,
+    Emitter<TaskState> emit,
+  ) {
     result.fold(
       (failure) {
         if (!emit.isDone) emit(TaskError(failure.toString()));

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/entities/task.dart';
+import '../../injection.dart';
 import '../blocs/task_bloc.dart';
 import '../theme/app_colors.dart';
 
@@ -26,7 +27,14 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     {'title': 'Copywriting', 'project': 'Charty App', 'priority': TaskPriority.high, 'completed': false},
   ];
 
-  void _confirmDeleteTask() {
+  void _confirmDeleteTask(BuildContext context) {
+    TaskBloc taskBloc;
+    try {
+      taskBloc = context.read<TaskBloc>();
+    } catch (_) {
+      taskBloc = sl<TaskBloc>();
+    }
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -44,7 +52,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             ),
             onPressed: () {
-              context.read<TaskBloc>().add(DeleteTaskRequested(widget.task.id));
+              taskBloc.add(DeleteTaskRequested(widget.task.id));
               Navigator.pop(ctx); // Close Dialog
               Navigator.pop(context); // Close Detail Screen
             },
@@ -83,7 +91,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
             child: IconButton(
               icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Colors.red),
               tooltip: 'Delete Task',
-              onPressed: _confirmDeleteTask,
+              onPressed: () => _confirmDeleteTask(context),
             ),
           ),
         ],
