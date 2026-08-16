@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/entities/task.dart';
 import '../blocs/task_bloc.dart';
+import '../blocs/auth_bloc.dart';
 import '../theme/app_colors.dart';
 import '../widgets/task_card.dart';
 import '../widgets/floating_bottom_nav_bar.dart';
@@ -28,6 +29,7 @@ class _DashboardKanbanScreenState extends State<DashboardKanbanScreen> {
   void initState() {
     super.initState();
     context.read<TaskBloc>().add(SubscribeToBoard(widget.workspaceId));
+    context.read<AuthBloc>().add(CheckAuthStatusRequested());
   }
 
   void _showCreateBottomSheet() {
@@ -55,152 +57,184 @@ class _DashboardKanbanScreenState extends State<DashboardKanbanScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            IndexedStack(
-              index: _navIndex == 1 ? 1 : 0,
-              children: [
-                Column(
-                  children: [
-                    _buildHeader(),
-                    Expanded(
-                      child: BlocBuilder<TaskBloc, TaskState>(
-                        builder: (context, state) {
-                          if (state is TaskLoading) {
-                            return const Center(
-                              child: CircularProgressIndicator(color: AppColors.blackButton),
-                            );
-                          }
-                          if (state is TaskError) {
-                            return Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                                    child: Text(
-                                      state.message,
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(color: Colors.red),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  ElevatedButton(
-                                    onPressed: () {
-                                      context.read<TaskBloc>().add(SubscribeToBoard(widget.workspaceId));
-                                    },
-                                    child: const Text('Retry'),
-                                  ),
-                                ],
-                              ),
-                            );
-                          }
-                          
-                          List<Task> tasks = [];
-                          if (state is TaskLoaded) {
-                            tasks = state.tasks;
-                          }
-
-                          return RefreshIndicator(
-                            onRefresh: () async {
-                              context.read<TaskBloc>().add(SubscribeToBoard(widget.workspaceId));
-                            },
-                            child: ListView(
-                              padding: const EdgeInsets.symmetric(horizontal: 20),
-                              children: [
-                                const SizedBox(height: 12),
-                                _buildHeroBanner(),
-                                const SizedBox(height: 24),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return BlocListener<AuthBloc, AuthState>(
+      listener: (context, state) {
+        if (state is Unauthenticated) {
+          if (state.message != null && state.message!.isNotEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.message!),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: SafeArea(
+          child: Stack(
+            children: [
+              IndexedStack(
+                index: _navIndex == 1 ? 1 : 0,
+                children: [
+                  Column(
+                    children: [
+                      _buildHeader(),
+                      Expanded(
+                        child: BlocBuilder<TaskBloc, TaskState>(
+                          builder: (context, state) {
+                            if (state is TaskLoading) {
+                              return const Center(
+                                child: CircularProgressIndicator(color: AppColors.blackButton),
+                              );
+                            }
+                            if (state is TaskError) {
+                              return Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    const Text(
-                                      'Your task',
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.darkText,
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                                      child: Text(
+                                        state.message,
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(color: Colors.red),
                                       ),
                                     ),
-                                    TextButton(
-                                      onPressed: () {},
-                                      child: const Text(
-                                        'See All',
-                                        style: TextStyle(color: AppColors.subText, fontSize: 13),
-                                      ),
+                                    const SizedBox(height: 12),
+                                    ElevatedButton(
+                                      onPressed: () {
+                                        context.read<TaskBloc>().add(SubscribeToBoard(widget.workspaceId));
+                                      },
+                                      child: const Text('Retry'),
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 8),
-                                _buildKanbanView(tasks),
-                                const SizedBox(height: 100), // Spacing for floating navbar
-                              ],
-                            ),
-                          );
-                        },
+                              );
+                            }
+                            
+                            List<Task> tasks = [];
+                            if (state is TaskLoaded) {
+                              tasks = state.tasks;
+                            }
+
+                            return RefreshIndicator(
+                              onRefresh: () async {
+                                context.read<TaskBloc>().add(SubscribeToBoard(widget.workspaceId));
+                              },
+                              child: ListView(
+                                padding: const EdgeInsets.symmetric(horizontal: 20),
+                                children: [
+                                  const SizedBox(height: 12),
+                                  _buildHeroBanner(),
+                                  const SizedBox(height: 24),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      const Text(
+                                        'Your task',
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.darkText,
+                                        ),
+                                      ),
+                                      TextButton(
+                                        onPressed: () {},
+                                        child: const Text(
+                                          'See All',
+                                          style: TextStyle(color: AppColors.subText, fontSize: 13),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  _buildKanbanView(tasks),
+                                  const SizedBox(height: 100), // Spacing for floating navbar
+                                ],
+                              ),
+                            );
+                          },
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const CalendarMeetingScreen(),
-              ],
-            ),
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: FloatingBottomNavBar(
-                selectedIndex: _navIndex,
-                onTap: (index) => setState(() => _navIndex = index),
-                onAddPressed: _showCreateBottomSheet,
+                    ],
+                  ),
+                  const CalendarMeetingScreen(),
+                ],
               ),
-            ),
-          ],
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: FloatingBottomNavBar(
+                  selectedIndex: _navIndex,
+                  onTap: (index) => setState(() => _navIndex = index),
+                  onAddPressed: _showCreateBottomSheet,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          const Row(
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, state) {
+        String userName = 'Esther Howard';
+        String avatarUrl = 'https://i.pravatar.cc/100?img=33';
+
+        if (state is Authenticated) {
+          userName = state.user.name;
+          if (state.user.avatarUrl != null && state.user.avatarUrl!.isNotEmpty) {
+            avatarUrl = state.user.avatarUrl!;
+          }
+        }
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              CircleAvatar(
-                radius: 18,
-                backgroundImage: NetworkImage('https://i.pravatar.cc/100?img=33'),
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 18,
+                    backgroundImage: NetworkImage(avatarUrl),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    userName,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.darkText,
+                    ),
+                  ),
+                ],
               ),
-              SizedBox(width: 10),
-              Text(
-                'Esther Howard',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.darkText,
-                ),
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications_none_rounded, color: AppColors.darkText),
+                    onPressed: () {},
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.logout_rounded, color: AppColors.darkText),
+                    tooltip: 'Logout',
+                    onPressed: () {
+                      context.read<AuthBloc>().add(SignOutRequested());
+                    },
+                  ),
+                ],
               ),
             ],
           ),
-          Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.notifications_none_rounded, color: AppColors.darkText),
-                onPressed: () {},
-              ),
-              IconButton(
-                icon: const Icon(Icons.search_rounded, color: AppColors.darkText),
-                onPressed: () {},
-              ),
-            ],
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
