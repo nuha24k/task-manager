@@ -1,5 +1,6 @@
 import 'package:fpdart/fpdart.dart' hide Task;
 import '../entities/task.dart';
+import '../entities/task_goal.dart';
 
 abstract class TaskRepository {
   Future<Either<Exception, List<Task>>> getTasks(String workspaceId);
@@ -12,6 +13,14 @@ abstract class TaskRepository {
     required TaskStatus newStatus,
     required int newPosition,
   });
+
+  // Comments / Realtime Chat
   Stream<List<TaskComment>> watchComments(String taskId);
   Future<Either<Exception, void>> addComment(TaskComment comment);
+
+  // Goals
+  Stream<List<TaskGoal>> watchGoals(String taskId);
+  Future<Either<Exception, TaskGoal>> createGoal(TaskGoal goal);
+  Future<Either<Exception, void>> updateGoal(TaskGoal goal);
+  Future<Either<Exception, void>> deleteGoal(String goalId);
 }

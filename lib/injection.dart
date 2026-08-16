@@ -7,8 +7,12 @@ import '../domain/repositories/task_repository.dart';
 import '../domain/repositories/auth_repository.dart';
 import '../domain/usecases/task_usecases.dart';
 import '../domain/usecases/auth_usecases.dart';
+import '../domain/usecases/goal_usecases.dart';
+import '../domain/usecases/chat_usecases.dart';
 import '../presentation/blocs/task_bloc.dart';
 import '../presentation/blocs/auth_bloc.dart';
+import '../presentation/blocs/goal_bloc.dart';
+import '../presentation/blocs/chat_bloc.dart';
 
 final sl = GetIt.instance;
 
@@ -39,6 +43,14 @@ Future<void> initInjection({SupabaseClient? supabaseClient}) async {
   sl.registerLazySingleton(() => DeleteTaskUseCase(sl()));
   sl.registerLazySingleton(() => ReorderTaskUseCase(sl()));
 
+  sl.registerLazySingleton(() => WatchGoalsUseCase(sl()));
+  sl.registerLazySingleton(() => CreateGoalUseCase(sl()));
+  sl.registerLazySingleton(() => UpdateGoalUseCase(sl()));
+  sl.registerLazySingleton(() => DeleteGoalUseCase(sl()));
+
+  sl.registerLazySingleton(() => WatchCommentsUseCase(sl()));
+  sl.registerLazySingleton(() => AddCommentUseCase(sl()));
+
   sl.registerLazySingleton(() => GetCurrentUserUseCase(sl()));
   sl.registerLazySingleton(() => SignOutUseCase(sl()));
   sl.registerLazySingleton(() => WatchAuthStateUseCase(sl()));
@@ -51,6 +63,22 @@ Future<void> initInjection({SupabaseClient? supabaseClient}) async {
       updateTaskUseCase: sl(),
       reorderTaskUseCase: sl(),
       deleteTaskUseCase: sl(),
+    ),
+  );
+
+  sl.registerFactory(
+    () => GoalBloc(
+      watchGoalsUseCase: sl(),
+      createGoalUseCase: sl(),
+      updateGoalUseCase: sl(),
+      deleteGoalUseCase: sl(),
+    ),
+  );
+
+  sl.registerFactory(
+    () => ChatBloc(
+      watchCommentsUseCase: sl(),
+      addCommentUseCase: sl(),
     ),
   );
 

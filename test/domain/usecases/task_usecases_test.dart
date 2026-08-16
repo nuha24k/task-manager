@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fpdart/fpdart.dart' hide Task;
 import 'package:mocktail/mocktail.dart';
-import 'package:task_management/domain/entities/task.dart';
 import 'package:task_management/domain/repositories/task_repository.dart';
 import 'package:task_management/domain/usecases/task_usecases.dart';
 

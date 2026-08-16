@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/task_model.dart';
+import '../models/task_goal_model.dart';
 import '../../domain/entities/task.dart';
 
 abstract class TaskRemoteDataSource {
@@ -14,8 +15,16 @@ abstract class TaskRemoteDataSource {
     required TaskStatus newStatus,
     required int newPosition,
   });
+
+  // Comments / Chat
   Stream<List<TaskCommentModel>> watchComments(String taskId);
   Future<void> addComment(TaskCommentModel comment);
+
+  // Goals
+  Stream<List<TaskGoalModel>> watchGoals(String taskId);
+  Future<TaskGoalModel> createGoal(TaskGoalModel goal);
+  Future<void> updateGoal(TaskGoalModel goal);
+  Future<void> deleteGoal(String goalId);
 }
 
 class TaskRemoteDataSourceImpl implements TaskRemoteDataSource {
@@ -38,6 +47,49 @@ class TaskRemoteDataSourceImpl implements TaskRemoteDataSource {
       progress: 0.65,
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
+    ),
+  ];
+
+  static final List<TaskGoalModel> _mockGoals = [
+    TaskGoalModel(
+      id: 'g1',
+      taskId: '00000000-0000-0000-0000-000000000001',
+      title: 'Design system',
+      projectName: 'Charty App',
+      priority: TaskPriority.high,
+      isCompleted: true,
+      dueDate: DateTime.now().add(const Duration(days: 3)),
+      createdAt: DateTime.now(),
+    ),
+    TaskGoalModel(
+      id: 'g2',
+      taskId: '00000000-0000-0000-0000-000000000001',
+      title: 'Landing Page',
+      projectName: 'Charty App',
+      priority: TaskPriority.high,
+      isCompleted: false,
+      dueDate: DateTime.now().add(const Duration(days: 5)),
+      createdAt: DateTime.now(),
+    ),
+    TaskGoalModel(
+      id: 'g3',
+      taskId: '00000000-0000-0000-0000-000000000001',
+      title: 'Pricing Page',
+      projectName: 'Charty App',
+      priority: TaskPriority.low,
+      isCompleted: false,
+      dueDate: DateTime.now().add(const Duration(days: 7)),
+      createdAt: DateTime.now(),
+    ),
+    TaskGoalModel(
+      id: 'g4',
+      taskId: '00000000-0000-0000-0000-000000000001',
+      title: 'Copywriting',
+      projectName: 'Charty App',
+      priority: TaskPriority.high,
+      isCompleted: false,
+      dueDate: DateTime.now().add(const Duration(days: 10)),
+      createdAt: DateTime.now(),
     ),
   ];
 
@@ -146,6 +198,7 @@ class TaskRemoteDataSourceImpl implements TaskRemoteDataSource {
           .from('task_comments')
           .stream(primaryKey: ['id'])
           .eq('task_id', taskId)
+          .order('created_at', ascending: true)
           .map((maps) => maps.map((map) => TaskCommentModel.fromJson(map)).toList());
     } catch (e) {
       debugPrint('Supabase watchComments Error: $e');
@@ -165,6 +218,68 @@ class TaskRemoteDataSourceImpl implements TaskRemoteDataSource {
     } catch (e) {
       debugPrint('Supabase addComment Error: $e');
       rethrow;
+    }
+  }
+
+  // --- Goals ---
+  @override
+  Stream<List<TaskGoalModel>> watchGoals(String taskId) {
+    try {
+      return supabaseClient
+          .from('task_goals')
+          .stream(primaryKey: ['id'])
+          .eq('task_id', taskId)
+          .order('created_at', ascending: true)
+          .map((maps) => maps.map((map) => TaskGoalModel.fromJson(map)).toList());
+    } catch (e) {
+      debugPrint('Supabase watchGoals Error: $e');
+      return Stream.value(_mockGoals.where((g) => g.taskId == taskId || taskId.isNotEmpty).toList());
+    }
+  }
+
+  @override
+  Future<TaskGoalModel> createGoal(TaskGoalModel goal) async {
+    try {
+      final json = goal.toJson();
+      final response = await supabaseClient
+          .from('task_goals')
+          .insert(json)
+          .select()
+          .single();
+
+      return TaskGoalModel.fromJson(response);
+    } catch (e) {
+      debugPrint('Supabase createGoal Error: $e');
+      // Fallback update mock in case of offline/no DB backend setup
+      _mockGoals.add(goal);
+      return goal;
+    }
+  }
+
+  @override
+  Future<void> updateGoal(TaskGoalModel goal) async {
+    try {
+      final json = goal.toJson();
+      await supabaseClient
+          .from('task_goals')
+          .update(json)
+          .eq('id', goal.id);
+    } catch (e) {
+      debugPrint('Supabase updateGoal Error: $e');
+      final index = _mockGoals.indexWhere((g) => g.id == goal.id);
+      if (index != -1) {
+        _mockGoals[index] = goal;
+      }
+    }
+  }
+
+  @override
+  Future<void> deleteGoal(String goalId) async {
+    try {
+      await supabaseClient.from('task_goals').delete().eq('id', goalId);
+    } catch (e) {
+      debugPrint('Supabase deleteGoal Error: $e');
+      _mockGoals.removeWhere((g) => g.id == goalId);
     }
   }
 }

@@ -32,14 +32,28 @@ CREATE TABLE public.task_comments (
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- 3.5. Create Task Goals Table
+CREATE TABLE public.task_goals (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    task_id UUID NOT NULL REFERENCES public.tasks(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    project_name TEXT DEFAULT 'Charty App',
+    priority public.task_priority NOT NULL DEFAULT 'medium',
+    is_completed BOOLEAN NOT NULL DEFAULT false,
+    due_date TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
 -- 4. Create Performance Indexes
 CREATE INDEX idx_tasks_workspace_status ON public.tasks (workspace_id, status);
 CREATE INDEX idx_tasks_position ON public.tasks (position);
 CREATE INDEX idx_comments_task ON public.task_comments (task_id);
+CREATE INDEX idx_goals_task ON public.task_goals (task_id);
 
 -- 5. Enable Row Level Security (RLS)
 ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.task_comments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.task_goals ENABLE ROW LEVEL SECURITY;
 
 -- 6. RLS Policies for Tasks
 DROP POLICY IF EXISTS "Allow authenticated users to read tasks" ON public.tasks;
@@ -81,6 +95,34 @@ ON public.task_comments FOR INSERT
 TO authenticated 
 WITH CHECK (auth.uid() = user_id);
 
--- 8. Enable Realtime Engine for Tasks & Comments Tables
+-- 8. RLS Policies for Task Goals
+DROP POLICY IF EXISTS "Allow authenticated users to read goals" ON public.task_goals;
+DROP POLICY IF EXISTS "Allow authenticated users to insert goals" ON public.task_goals;
+DROP POLICY IF EXISTS "Allow authenticated users to update goals" ON public.task_goals;
+DROP POLICY IF EXISTS "Allow authenticated users to delete goals" ON public.task_goals;
+
+CREATE POLICY "Allow authenticated users to read goals" 
+ON public.task_goals FOR SELECT 
+TO authenticated 
+USING (true);
+
+CREATE POLICY "Allow authenticated users to insert goals" 
+ON public.task_goals FOR INSERT 
+TO authenticated 
+WITH CHECK (true);
+
+CREATE POLICY "Allow authenticated users to update goals" 
+ON public.task_goals FOR UPDATE 
+TO authenticated 
+USING (true);
+
+CREATE POLICY "Allow authenticated users to delete goals" 
+ON public.task_goals FOR DELETE 
+TO authenticated 
+USING (true);
+
+-- 9. Enable Realtime Engine for Tasks, Comments & Goals Tables
 ALTER PUBLICATION supabase_realtime ADD TABLE public.tasks;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.task_comments;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.task_goals;
+
