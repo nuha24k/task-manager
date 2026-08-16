@@ -5,12 +5,14 @@ import '../theme/app_colors.dart';
 class TaskCard extends StatelessWidget {
   final Task task;
   final VoidCallback? onTap;
+  final VoidCallback? onEditTap;
   final Color backgroundColor;
 
   const TaskCard({
     super.key,
     required this.task,
     this.onTap,
+    this.onEditTap,
     this.backgroundColor = AppColors.primaryCard,
   });
 
@@ -31,40 +33,46 @@ class TaskCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.6),
-                        borderRadius: BorderRadius.circular(10),
+                Expanded(
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.6),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.space_dashboard_rounded,
+                          size: 16,
+                          color: AppColors.darkText,
+                        ),
                       ),
-                      child: const Icon(
-                        Icons.space_dashboard_rounded,
-                        size: 16,
-                        color: AppColors.darkText,
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          task.title,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.darkText,
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      task.title,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.darkText,
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.edit_outlined, size: 18, color: AppColors.darkText),
-                  onPressed: () {},
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                ),
+                if (onEditTap != null)
+                  IconButton(
+                    icon: const Icon(Icons.edit_outlined, size: 18, color: AppColors.darkText),
+                    onPressed: onEditTap,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
               ],
             ),
-            const SizedBox(width: 0, height: 12),
+            const SizedBox(height: 12),
             Row(
               children: [
                 _buildStatusPill(task.status),
@@ -131,7 +139,6 @@ class TaskCard extends StatelessWidget {
                                 : "No date",
                             style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
                           ),
-                          const Icon(Icons.keyboard_arrow_down, size: 14, color: AppColors.subText),
                         ],
                       ),
                     ),

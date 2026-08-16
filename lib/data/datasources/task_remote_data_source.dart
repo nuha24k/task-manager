@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/task_model.dart';
 import '../../domain/entities/task.dart';
@@ -22,11 +23,11 @@ class TaskRemoteDataSourceImpl implements TaskRemoteDataSource {
 
   TaskRemoteDataSourceImpl(this.supabaseClient);
 
-  // Mock initial tasks for UI demo mode when Supabase is not initialized
+  // Mock initial tasks for fallback UI
   static final List<TaskModel> _mockTasks = [
     TaskModel(
-      id: '1',
-      workspaceId: 'demo-workspace-id',
+      id: '00000000-0000-0000-0000-000000000001',
+      workspaceId: '00000000-0000-0000-0000-000000000001',
       title: 'Website Design',
       description: 'Create website landing page & UI system',
       status: TaskStatus.inProgress,
@@ -35,20 +36,6 @@ class TaskRemoteDataSourceImpl implements TaskRemoteDataSource {
       dueDate: DateTime.now().add(const Duration(days: 5)),
       position: 0,
       progress: 0.65,
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-    ),
-    TaskModel(
-      id: '2',
-      workspaceId: 'demo-workspace-id',
-      title: 'Mobile App Redesign',
-      description: 'Update color palette and components',
-      status: TaskStatus.todo,
-      priority: TaskPriority.medium,
-      assigneeIds: const ['u1', 'u2'],
-      dueDate: DateTime.now().add(const Duration(days: 10)),
-      position: 1,
-      progress: 0.30,
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     ),
@@ -64,7 +51,8 @@ class TaskRemoteDataSourceImpl implements TaskRemoteDataSource {
           .order('position', ascending: true);
 
       return (response as List).map((json) => TaskModel.fromJson(json)).toList();
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Supabase getTasks Error: $e');
       return _mockTasks;
     }
   }
@@ -81,7 +69,8 @@ class TaskRemoteDataSourceImpl implements TaskRemoteDataSource {
             tasks.sort((a, b) => a.position.compareTo(b.position));
             return tasks;
           });
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Supabase watchTasks Stream Error: $e');
       return Stream.value(_mockTasks);
     }
   }
@@ -90,49 +79,45 @@ class TaskRemoteDataSourceImpl implements TaskRemoteDataSource {
   Future<TaskModel> createTask(TaskModel task) async {
     try {
       final json = task.toJson();
-      if (task.id.isEmpty) {
-        json.remove('id');
+      final user = supabaseClient.auth.currentUser;
+      if (user != null) {
+        json['created_by'] = user.id;
       }
+
       final response = await supabaseClient
           .from('tasks')
           .insert(json)
           .select()
           .single();
+
       return TaskModel.fromJson(response);
-    } catch (_) {
-      final mock = TaskModel(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        workspaceId: task.workspaceId,
-        title: task.title,
-        description: task.description,
-        status: task.status,
-        priority: task.priority,
-        position: _mockTasks.length,
-        progress: 0.1,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
-      _mockTasks.add(mock);
-      return mock;
+    } catch (e) {
+      debugPrint('Supabase createTask Error: $e');
+      rethrow;
     }
   }
 
   @override
   Future<void> updateTask(TaskModel task) async {
     try {
+      final json = task.toJson();
       await supabaseClient
           .from('tasks')
-          .update(task.toJson())
+          .update(json)
           .eq('id', task.id);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Supabase updateTask Error: $e');
+      rethrow;
+    }
   }
 
   @override
   Future<void> deleteTask(String taskId) async {
     try {
       await supabaseClient.from('tasks').delete().eq('id', taskId);
-    } catch (_) {
-      _mockTasks.removeWhere((t) => t.id == taskId);
+    } catch (e) {
+      debugPrint('Supabase deleteTask Error: $e');
+      rethrow;
     }
   }
 
@@ -148,13 +133,9 @@ class TaskRemoteDataSourceImpl implements TaskRemoteDataSource {
         'position': newPosition,
         'updated_at': DateTime.now().toIso8601String(),
       }).eq('id', taskId);
-    } catch (_) {
-      final index = _mockTasks.indexWhere((t) => t.id == taskId);
-      if (index != -1) {
-        _mockTasks[index] = TaskModel.fromEntity(
-          _mockTasks[index].copyWith(status: newStatus, position: newPosition),
-        );
-      }
+    } catch (e) {
+      debugPrint('Supabase reorderTask Error: $e');
+      rethrow;
     }
   }
 
@@ -166,7 +147,8 @@ class TaskRemoteDataSourceImpl implements TaskRemoteDataSource {
           .stream(primaryKey: ['id'])
           .eq('task_id', taskId)
           .map((maps) => maps.map((map) => TaskCommentModel.fromJson(map)).toList());
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Supabase watchComments Error: $e');
       return Stream.value([]);
     }
   }
@@ -175,10 +157,14 @@ class TaskRemoteDataSourceImpl implements TaskRemoteDataSource {
   Future<void> addComment(TaskCommentModel comment) async {
     try {
       final json = comment.toJson();
-      if (comment.id.isEmpty) {
-        json.remove('id');
+      final user = supabaseClient.auth.currentUser;
+      if (user != null) {
+        json['user_id'] = user.id;
       }
       await supabaseClient.from('task_comments').insert(json);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Supabase addComment Error: $e');
+      rethrow;
+    }
   }
 }

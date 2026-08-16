@@ -11,6 +11,7 @@ void main() {
   late MockTaskRepository mockRepository;
   late GetTasksUseCase getTasksUseCase;
   late CreateTaskUseCase createTaskUseCase;
+  late UpdateTaskUseCase updateTaskUseCase;
   late ReorderTaskUseCase reorderTaskUseCase;
   late DeleteTaskUseCase deleteTaskUseCase;
 
@@ -32,6 +33,7 @@ void main() {
     mockRepository = MockTaskRepository();
     getTasksUseCase = GetTasksUseCase(mockRepository);
     createTaskUseCase = CreateTaskUseCase(mockRepository);
+    updateTaskUseCase = UpdateTaskUseCase(mockRepository);
     reorderTaskUseCase = ReorderTaskUseCase(mockRepository);
     deleteTaskUseCase = DeleteTaskUseCase(mockRepository);
     registerFallbackValue(tTask);
@@ -96,6 +98,22 @@ void main() {
             newStatus: TaskStatus.done,
             newPosition: 3,
           )).called(1);
+    });
+  });
+
+  group('UpdateTaskUseCase', () {
+    test('should forward update task request to repository', () async {
+      // Arrange
+      when(() => mockRepository.updateTask(any()))
+          .thenAnswer((_) async => const Right(null));
+
+      // Act
+      final result = await updateTaskUseCase(tTask);
+
+      // Assert
+      expect(result, equals(const Right(null)));
+      verify(() => mockRepository.updateTask(tTask)).called(1);
+      verifyNoMoreInteractions(mockRepository);
     });
   });
 

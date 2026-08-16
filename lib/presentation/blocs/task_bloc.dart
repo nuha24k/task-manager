@@ -25,6 +25,13 @@ class CreateTaskRequested extends TaskEvent {
   List<Object?> get props => [task];
 }
 
+class UpdateTaskRequested extends TaskEvent {
+  final Task task;
+  const UpdateTaskRequested(this.task);
+  @override
+  List<Object?> get props => [task];
+}
+
 class TaskMoved extends TaskEvent {
   final String taskId;
   final TaskStatus newStatus;
@@ -75,17 +82,20 @@ class TaskError extends TaskState {
 class TaskBloc extends Bloc<TaskEvent, TaskState> {
   final WatchTasksUseCase watchTasksUseCase;
   final CreateTaskUseCase createTaskUseCase;
+  final UpdateTaskUseCase updateTaskUseCase;
   final ReorderTaskUseCase reorderTaskUseCase;
   final DeleteTaskUseCase deleteTaskUseCase;
 
   TaskBloc({
     required this.watchTasksUseCase,
     required this.createTaskUseCase,
+    required this.updateTaskUseCase,
     required this.reorderTaskUseCase,
     required this.deleteTaskUseCase,
   }) : super(TaskInitial()) {
     on<SubscribeToBoard>(_onSubscribeToBoard);
     on<CreateTaskRequested>(_onCreateTaskRequested);
+    on<UpdateTaskRequested>(_onUpdateTaskRequested);
     on<TaskMoved>(_onTaskMoved);
     on<DeleteTaskRequested>(_onDeleteTaskRequested);
   }
@@ -113,6 +123,19 @@ class TaskBloc extends Bloc<TaskEvent, TaskState> {
     Emitter<TaskState> emit,
   ) async {
     final result = await createTaskUseCase(event.task);
+    result.fold(
+      (failure) {
+        if (!emit.isDone) emit(TaskError(failure.toString()));
+      },
+      (_) {},
+    );
+  }
+
+  Future<void> _onUpdateTaskRequested(
+    UpdateTaskRequested event,
+    Emitter<TaskState> emit,
+  ) async {
+    final result = await updateTaskUseCase(event.task);
     result.fold(
       (failure) {
         if (!emit.isDone) emit(TaskError(failure.toString()));

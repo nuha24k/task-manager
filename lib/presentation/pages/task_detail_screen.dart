@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/entities/task.dart';
+import '../blocs/task_bloc.dart';
 import '../theme/app_colors.dart';
 
 class TaskDetailScreen extends StatefulWidget {
@@ -23,6 +25,35 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     {'title': 'Pricing Page', 'project': 'Charty App', 'priority': TaskPriority.low, 'completed': false},
     {'title': 'Copywriting', 'project': 'Charty App', 'priority': TaskPriority.high, 'completed': false},
   ];
+
+  void _confirmDeleteTask() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text('Delete Task', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: const Text('Are you sure you want to delete this task? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.subText)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            ),
+            onPressed: () {
+              context.read<TaskBloc>().add(DeleteTaskRequested(widget.task.id));
+              Navigator.pop(ctx); // Close Dialog
+              Navigator.pop(context); // Close Detail Screen
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -50,8 +81,9 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               shape: BoxShape.circle,
             ),
             child: IconButton(
-              icon: const Icon(Icons.more_vert_rounded, size: 18, color: AppColors.darkText),
-              onPressed: () {},
+              icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Colors.red),
+              tooltip: 'Delete Task',
+              onPressed: _confirmDeleteTask,
             ),
           ),
         ],
@@ -83,10 +115,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                         ),
                         child: const Icon(Icons.space_dashboard_rounded, size: 18, color: AppColors.darkText),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.edit_outlined, size: 18, color: AppColors.darkText),
-                        onPressed: () {},
-                      ),
+                      _buildStatusPill(widget.task.status),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -98,7 +127,14 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       color: AppColors.darkText,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  if (widget.task.description != null && widget.task.description!.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      widget.task.description!,
+                      style: const TextStyle(fontSize: 14, color: AppColors.subText),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
                   const Row(
                     children: [
                       Text('Created by ', style: TextStyle(fontSize: 13, color: AppColors.subText)),
@@ -147,7 +183,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                             Text(
                               widget.task.dueDate != null
                                   ? "${widget.task.dueDate!.day} ${_monthName(widget.task.dueDate!.month)}"
-                                  : "6 August",
+                                  : "No deadline",
                               style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.darkText),
                             ),
                           ],
@@ -308,6 +344,24 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
           const SizedBox(width: 4),
           const Icon(Icons.more_vert, size: 18, color: AppColors.subText),
         ],
+      ),
+    );
+  }
+
+  Widget _buildStatusPill(TaskStatus status) {
+    String label = 'To Do';
+    if (status == TaskStatus.inProgress) label = 'In Progress';
+    if (status == TaskStatus.done) label = 'Done';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.darkText),
       ),
     );
   }

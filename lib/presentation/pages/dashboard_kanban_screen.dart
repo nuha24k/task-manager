@@ -34,15 +34,20 @@ class _DashboardKanbanScreenState extends State<DashboardKanbanScreen> {
     context.read<AuthBloc>().add(CheckAuthStatusRequested());
   }
 
-  void _showCreateBottomSheet() {
+  void _showCreateBottomSheet([Task? taskToEdit]) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => CreateTaskBottomSheet(
         workspaceId: widget.workspaceId,
-        onTaskCreated: (newTask) {
-          context.read<TaskBloc>().add(CreateTaskRequested(newTask));
+        taskToEdit: taskToEdit,
+        onTaskCreated: (task) {
+          if (taskToEdit != null) {
+            context.read<TaskBloc>().add(UpdateTaskRequested(task));
+          } else {
+            context.read<TaskBloc>().add(CreateTaskRequested(task));
+          }
         },
       ),
     );
@@ -183,7 +188,7 @@ class _DashboardKanbanScreenState extends State<DashboardKanbanScreen> {
                 right: 28,
                 bottom: 80, // Positioned right above the bottom nav bar
                 child: FloatingActionButton(
-                  onPressed: _showCreateBottomSheet,
+                  onPressed: () => _showCreateBottomSheet(),
                   backgroundColor: AppColors.blackButton,
                   elevation: 6,
                   shape: const CircleBorder(),
@@ -343,6 +348,7 @@ class _DashboardKanbanScreenState extends State<DashboardKanbanScreen> {
                 task: task,
                 backgroundColor: bgColor,
                 onTap: () => _navigateToDetail(task),
+                onEditTap: () => _showCreateBottomSheet(task),
               ),
             ),
           ),
@@ -352,6 +358,7 @@ class _DashboardKanbanScreenState extends State<DashboardKanbanScreen> {
               task: task,
               backgroundColor: bgColor,
               onTap: () => _navigateToDetail(task),
+              onEditTap: () => _showCreateBottomSheet(task),
             ),
           ),
           child: DragTarget<Task>(
@@ -370,6 +377,7 @@ class _DashboardKanbanScreenState extends State<DashboardKanbanScreen> {
                 task: task,
                 backgroundColor: bgColor,
                 onTap: () => _navigateToDetail(task),
+                onEditTap: () => _showCreateBottomSheet(task),
               );
             },
           ),

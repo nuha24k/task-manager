@@ -48,6 +48,7 @@ Future<void> initInjection({SupabaseClient? supabaseClient}) async {
     () => TaskBloc(
       watchTasksUseCase: sl(),
       createTaskUseCase: sl(),
+      updateTaskUseCase: sl(),
       reorderTaskUseCase: sl(),
       deleteTaskUseCase: sl(),
     ),
