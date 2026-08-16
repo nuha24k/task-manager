@@ -9,6 +9,8 @@ import '../widgets/floating_bottom_nav_bar.dart';
 import '../widgets/create_task_bottom_sheet.dart';
 import 'task_detail_screen.dart';
 import 'calendar_meeting_screen.dart';
+import 'statistics_screen.dart';
+import 'user_profile_screen.dart';
 
 class DashboardKanbanScreen extends StatefulWidget {
   final String workspaceId;
@@ -77,7 +79,7 @@ class _DashboardKanbanScreenState extends State<DashboardKanbanScreen> {
           child: Stack(
             children: [
               IndexedStack(
-                index: _navIndex == 1 ? 1 : 0,
+                index: _navIndex,
                 children: [
                   Column(
                     children: [
@@ -152,7 +154,7 @@ class _DashboardKanbanScreenState extends State<DashboardKanbanScreen> {
                                   ),
                                   const SizedBox(height: 8),
                                   _buildKanbanView(tasks),
-                                  const SizedBox(height: 100), // Spacing for floating navbar
+                                  const SizedBox(height: 140), // Spacing for floating navbar & FAB
                                 ],
                               ),
                             );
@@ -162,8 +164,11 @@ class _DashboardKanbanScreenState extends State<DashboardKanbanScreen> {
                     ],
                   ),
                   const CalendarMeetingScreen(),
+                  const StatisticsScreen(),
+                  const UserProfileScreen(),
                 ],
               ),
+              // Floating Bottom Navigation Bar
               Positioned(
                 left: 0,
                 right: 0,
@@ -171,7 +176,18 @@ class _DashboardKanbanScreenState extends State<DashboardKanbanScreen> {
                 child: FloatingBottomNavBar(
                   selectedIndex: _navIndex,
                   onTap: (index) => setState(() => _navIndex = index),
-                  onAddPressed: _showCreateBottomSheet,
+                ),
+              ),
+              // FAB Positioned exactly above the Bottom Navigation Bar
+              Positioned(
+                right: 28,
+                bottom: 80, // Positioned right above the bottom nav bar
+                child: FloatingActionButton(
+                  onPressed: _showCreateBottomSheet,
+                  backgroundColor: AppColors.blackButton,
+                  elevation: 6,
+                  shape: const CircleBorder(),
+                  child: const Icon(Icons.add, color: Colors.white, size: 26),
                 ),
               ),
             ],
