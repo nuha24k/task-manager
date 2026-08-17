@@ -7,7 +7,10 @@ import '../theme/app_colors.dart';
 import '../widgets/task_card.dart';
 import '../widgets/floating_bottom_nav_bar.dart';
 import '../widgets/create_task_bottom_sheet.dart';
+import '../widgets/invitation_preview_dialog.dart';
+import '../utils/deep_link_handler.dart';
 import 'task_detail_screen.dart';
+
 import 'calendar_meeting_screen.dart';
 import 'statistics_screen.dart';
 import 'user_profile_screen.dart';
@@ -32,7 +35,29 @@ class _DashboardKanbanScreenState extends State<DashboardKanbanScreen> {
     super.initState();
     context.read<TaskBloc>().add(SubscribeToBoard(widget.workspaceId));
     context.read<AuthBloc>().add(CheckAuthStatusRequested());
+
+    // Initialize DeepLinkHandler for invitation links
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      DeepLinkHandler.init(
+        onInvitationTokenReceived: (token) {
+          InvitationPreviewDialog.show(
+            context,
+            token,
+            onAccepted: () {
+              context.read<TaskBloc>().add(SubscribeToBoard(widget.workspaceId));
+            },
+          );
+        },
+      );
+    });
   }
+
+  @override
+  void dispose() {
+    DeepLinkHandler.dispose();
+    super.dispose();
+  }
+
 
   void _showCreateBottomSheet([Task? taskToEdit]) {
     final taskBloc = context.read<TaskBloc>();

@@ -9,13 +9,17 @@ import '../blocs/goal_bloc.dart';
 import '../blocs/chat_bloc.dart';
 import '../blocs/auth_bloc.dart';
 import '../theme/app_colors.dart';
+import '../widgets/task_share_modal.dart';
+
 
 class TaskDetailScreen extends StatelessWidget {
   final Task task;
+  final int initialTab;
 
   const TaskDetailScreen({
     super.key,
     required this.task,
+    this.initialTab = 0,
   });
 
   @override
@@ -29,24 +33,31 @@ class TaskDetailScreen extends StatelessWidget {
           create: (_) => sl<ChatBloc>()..add(WatchCommentsRequested(task.id)),
         ),
       ],
-      child: _TaskDetailView(task: task),
+      child: _TaskDetailView(task: task, initialTab: initialTab),
     );
   }
 }
 
 class _TaskDetailView extends StatefulWidget {
   final Task task;
+  final int initialTab;
 
-  const _TaskDetailView({required this.task});
+  const _TaskDetailView({required this.task, this.initialTab = 0});
 
   @override
   State<_TaskDetailView> createState() => _TaskDetailViewState();
 }
 
 class _TaskDetailViewState extends State<_TaskDetailView> {
-  int _selectedSubTab = 0; // 0: Goals, 1: Chat
+  late int _selectedSubTab;
   final TextEditingController _chatController = TextEditingController();
   final ScrollController _chatScrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedSubTab = widget.initialTab;
+  }
 
   @override
   void dispose() {
@@ -468,6 +479,18 @@ class _TaskDetailViewState extends State<_TaskDetailView> {
         ),
         actions: [
           Container(
+            margin: const EdgeInsets.only(right: 8),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.person_add_alt_1_rounded, size: 18, color: AppColors.darkText),
+              tooltip: 'Share & Add People',
+              onPressed: () => TaskShareModal.show(context, widget.task),
+            ),
+          ),
+          Container(
             margin: const EdgeInsets.only(right: 16),
             decoration: const BoxDecoration(
               color: Colors.white,
@@ -480,6 +503,7 @@ class _TaskDetailViewState extends State<_TaskDetailView> {
             ),
           ),
         ],
+
       ),
       body: Column(
         children: [
@@ -590,34 +614,49 @@ class _TaskDetailViewState extends State<_TaskDetailView> {
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(24),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('People', style: TextStyle(fontSize: 12, color: AppColors.subText)),
-                              const SizedBox(height: 12),
-                              Row(
-                                children: [
-                                  _buildAvatar('https://i.pravatar.cc/100?img=5'),
-                                  Transform.translate(
-                                    offset: const Offset(-8, 0),
-                                    child: _buildAvatar('https://i.pravatar.cc/100?img=8'),
-                                  ),
-                                  Transform.translate(
-                                    offset: const Offset(-16, 0),
-                                    child: _buildAvatar('https://i.pravatar.cc/100?img=15'),
-                                  ),
-                                ],
-                              ),
-                            ],
+                        child: InkWell(
+                          onTap: () => TaskShareModal.show(context, widget.task),
+                          borderRadius: BorderRadius.circular(24),
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(24),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text('People', style: TextStyle(fontSize: 12, color: AppColors.subText)),
+                                    Icon(Icons.add_circle_outline_rounded, size: 14, color: AppColors.subText),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    _buildAvatar('https://i.pravatar.cc/100?img=5'),
+                                    Transform.translate(
+                                      offset: const Offset(-8, 0),
+                                      child: _buildAvatar('https://i.pravatar.cc/100?img=8'),
+                                    ),
+                                    Transform.translate(
+                                      offset: const Offset(-16, 0),
+                                      child: CircleAvatar(
+                                        radius: 14,
+                                        backgroundColor: AppColors.primaryCard,
+                                        child: const Icon(Icons.add, size: 14, color: AppColors.darkText),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
+
                     ],
                   ),
                   const SizedBox(height: 20),
