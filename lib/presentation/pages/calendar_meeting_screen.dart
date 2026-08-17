@@ -2,19 +2,33 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../../domain/entities/task.dart';
+import '../../domain/entities/task_goal.dart';
+import '../blocs/goal_bloc.dart';
 import '../blocs/task_bloc.dart';
 import '../theme/app_colors.dart';
-import '../widgets/create_task_bottom_sheet.dart';
+import '../../injection.dart';
 import 'task_detail_screen.dart';
 
-class CalendarMeetingScreen extends StatefulWidget {
+class CalendarMeetingScreen extends StatelessWidget {
   const CalendarMeetingScreen({super.key});
 
   @override
-  State<CalendarMeetingScreen> createState() => _CalendarMeetingScreenState();
+  Widget build(BuildContext context) {
+    return BlocProvider<GoalBloc>(
+      create: (_) => sl<GoalBloc>()..add(const WatchGoalsRequested('')),
+      child: const _CalendarMeetingView(),
+    );
+  }
 }
 
-class _CalendarMeetingScreenState extends State<CalendarMeetingScreen> {
+class _CalendarMeetingView extends StatefulWidget {
+  const _CalendarMeetingView();
+
+  @override
+  State<_CalendarMeetingView> createState() => _CalendarMeetingViewState();
+}
+
+class _CalendarMeetingViewState extends State<_CalendarMeetingView> {
   DateTime _selectedMonth = DateTime(DateTime.now().year, DateTime.now().month, 1);
   DateTime _selectedDate = DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
 
@@ -40,53 +54,303 @@ class _CalendarMeetingScreenState extends State<CalendarMeetingScreen> {
 
   bool _isSameDay(DateTime? a, DateTime? b) {
     if (a == null || b == null) return false;
-    return a.year == b.year && a.month == b.month && a.day == b.day;
+    final localA = a.toLocal();
+    final localB = b.toLocal();
+    return localA.year == localB.year && localA.month == localB.month && localA.day == localB.day;
   }
 
-  void _navigateToDetail(BuildContext context, Task task, {int initialTab = 0}) {
-    TaskBloc taskBloc;
-    try {
-      taskBloc = context.read<TaskBloc>();
-    } catch (_) {
-      return;
-    }
+  void _navigateToTaskDetail(BuildContext context, TaskGoal goal) {
+    Task? targetTask;
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => BlocProvider.value(
-          value: taskBloc,
-          child: TaskDetailScreen(task: task, initialTab: initialTab),
-        ),
-      ),
+    try {
+      final taskState = context.read<TaskBloc>().state;
+      if (taskState is TaskLoaded) {
+        final found = taskState.tasks.where((t) => t.id == goal.taskId);
+        if (found.isNotEmpty) {
+          targetTask = found.first;
+        }
+      }
+    } catch (_) {}
+
+    targetTask ??= Task(
+      id: goal.taskId.isNotEmpty ? goal.taskId : '00000000-0000-0000-0000-000000000001',
+      workspaceId: '00000000-0000-0000-0000-000000000001',
+      title: goal.projectName.isNotEmpty ? goal.projectName : goal.title,
+      description: 'Task containing goal: ${goal.title}',
+      status: goal.isCompleted ? TaskStatus.done : TaskStatus.inProgress,
+      priority: goal.priority,
+      dueDate: goal.dueDate,
+      position: 0,
+      progress: goal.isCompleted ? 1.0 : 0.5,
+      createdAt: goal.createdAt,
+      updatedAt: DateTime.now(),
     );
-  }
 
-  void _showCreateTaskModal(BuildContext context) {
-    TaskBloc taskBloc;
+    TaskBloc? taskBloc;
     try {
       taskBloc = context.read<TaskBloc>();
-    } catch (_) {
-      return;
-    }
+    } catch (_) {}
 
-    // ponytail: static fallback workspace -> use active workspace ID from parent context
-    const workspaceId = '00000000-0000-0000-0000-000000000001';
+    if (taskBloc != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => BlocProvider.value(
+            value: taskBloc!,
+            child: TaskDetailScreen(task: targetTask!),
+          ),
+        ),
+      );
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => TaskDetailScreen(task: targetTask!),
+        ),
+      );
+    }
+  }
+
+  void _showCreateGoalModal(BuildContext context) {
+    GoalBloc? goalBloc;
+    try {
+      goalBloc = context.read<GoalBloc>();
+    } catch (_) {}
+
+    TaskBloc? taskBloc;
+    try {
+      taskBloc = context.read<TaskBloc>();
+    } catch (_) {}
+
+    final titleController = TextEditingController();
+    final projectController = TextEditingController();
+    TaskPriority priority = TaskPriority.medium;
+    DateTime goalDueDate = _selectedDate;
+    Task? selectedTask;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => BlocProvider.value(
-        value: taskBloc,
-        child: CreateTaskBottomSheet(
-          workspaceId: workspaceId,
-          onTaskCreated: (newTask) {
-            final taskWithDate = newTask.copyWith(dueDate: _selectedDate);
-            taskBloc.add(CreateTaskRequested(taskWithDate));
-          },
-        ),
-      ),
+      builder: (modalCtx) {
+        Widget content = StatefulBuilder(
+          builder: (ctx, setModalState) => Container(
+            padding: EdgeInsets.only(
+              top: 24,
+              left: 24,
+              right: 24,
+              bottom: MediaQuery.of(modalCtx).viewInsets.bottom + 24,
+            ),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Add Goal / Task',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.darkText),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: titleController,
+                  decoration: InputDecoration(
+                    hintText: 'Goal Title',
+                    filled: true,
+                    fillColor: AppColors.chipBackground,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                BlocBuilder<TaskBloc, TaskState>(
+                  builder: (context, taskState) {
+                    List<Task> availableTasks = [];
+                    if (taskState is TaskLoaded) {
+                      availableTasks = taskState.tasks;
+                    }
+
+                    if (availableTasks.isNotEmpty) {
+                      selectedTask ??= availableTasks.first;
+
+                      return DropdownButtonFormField<Task>(
+                        initialValue: selectedTask,
+                        decoration: InputDecoration(
+                          labelText: 'Select Related Task / Project',
+                          filled: true,
+                          fillColor: AppColors.chipBackground,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                        items: availableTasks
+                            .map((t) => DropdownMenuItem(
+                                  value: t,
+                                  child: Text(
+                                    t.title,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ))
+                            .toList(),
+                        onChanged: (val) {
+                          if (val != null) {
+                            setModalState(() {
+                              selectedTask = val;
+                              projectController.text = val.title;
+                            });
+                          }
+                        },
+                      );
+                    }
+
+                    return TextField(
+                      controller: projectController,
+                      decoration: InputDecoration(
+                        hintText: 'Project Name',
+                        filled: true,
+                        fillColor: AppColors.chipBackground,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<TaskPriority>(
+                  initialValue: priority,
+                  decoration: InputDecoration(
+                    labelText: 'Priority',
+                    filled: true,
+                    fillColor: AppColors.chipBackground,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                  items: TaskPriority.values
+                      .map((p) => DropdownMenuItem(
+                            value: p,
+                            child: Text(p.name.toUpperCase()),
+                          ))
+                      .toList(),
+                  onChanged: (val) {
+                    if (val != null) setModalState(() => priority = val);
+                  },
+                ),
+                const SizedBox(height: 12),
+
+                // Date Picker Row
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Due Date', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.subText)),
+                        const SizedBox(height: 2),
+                        Text(
+                          DateFormat('dd MMMM yyyy').format(goalDueDate),
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.darkText),
+                        ),
+                      ],
+                    ),
+                    TextButton.icon(
+                      onPressed: () async {
+                        final picked = await showDatePicker(
+                          context: modalCtx,
+                          initialDate: goalDueDate,
+                          firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                          lastDate: DateTime.now().add(const Duration(days: 365 * 3)),
+                        );
+                        if (picked != null) {
+                          setModalState(() => goalDueDate = picked);
+                        }
+                      },
+                      icon: const Icon(Icons.calendar_today_rounded, size: 16, color: AppColors.darkText),
+                      label: const Text('Change Date', style: TextStyle(color: AppColors.darkText, fontWeight: FontWeight.bold, fontSize: 13)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.blackButton,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(26),
+                      ),
+                    ),
+                    onPressed: () {
+                      if (titleController.text.trim().isEmpty) return;
+                      final effectiveProjectName = selectedTask != null
+                          ? selectedTask!.title
+                          : (projectController.text.trim().isNotEmpty
+                              ? projectController.text.trim()
+                              : 'Charty App');
+
+                      final newGoal = TaskGoal(
+                        id: '',
+                        taskId: selectedTask?.id ?? '00000000-0000-0000-0000-000000000001',
+                        title: titleController.text.trim(),
+                        projectName: effectiveProjectName,
+                        priority: priority,
+                        isCompleted: false,
+                        dueDate: goalDueDate,
+                        createdAt: DateTime.now(),
+                      );
+
+                      if (goalBloc != null) {
+                        goalBloc.add(CreateGoalRequested(newGoal));
+                      } else {
+                        context.read<GoalBloc>().add(CreateGoalRequested(newGoal));
+                      }
+
+                      setState(() {
+                        _selectedDate = goalDueDate;
+                        _selectedMonth = DateTime(goalDueDate.year, goalDueDate.month, 1);
+                      });
+                      Navigator.pop(modalCtx);
+                    },
+                    child: const Text(
+                      'Add Goal',
+                      style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+
+        if (taskBloc != null) {
+          return BlocProvider<TaskBloc>.value(
+            value: taskBloc,
+            child: content,
+          );
+        }
+        return content;
+      },
     );
   }
 
@@ -95,14 +359,17 @@ class _CalendarMeetingScreenState extends State<CalendarMeetingScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: BlocBuilder<TaskBloc, TaskState>(
+        child: BlocBuilder<GoalBloc, GoalState>(
           builder: (context, state) {
-            List<Task> allTasks = [];
-            if (state is TaskLoaded) {
-              allTasks = state.tasks;
+            List<TaskGoal> allGoals = [];
+            if (state is GoalLoaded) {
+              allGoals = state.goals;
             }
 
-            final tasksForSelectedDate = allTasks.where((t) => _isSameDay(t.dueDate, _selectedDate)).toList();
+            final goalsForSelectedDate = allGoals.where((g) {
+              final targetDate = g.dueDate ?? g.createdAt;
+              return _isSameDay(targetDate, _selectedDate);
+            }).toList();
 
             return SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -149,8 +416,8 @@ class _CalendarMeetingScreenState extends State<CalendarMeetingScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  // Calendar Grid Container
-                  _buildCalendarGrid(allTasks),
+                  // Calendar Grid Container (Displays Goals)
+                  _buildCalendarGrid(allGoals),
 
                   const SizedBox(height: 24),
 
@@ -163,8 +430,8 @@ class _CalendarMeetingScreenState extends State<CalendarMeetingScreen> {
                         children: [
                           Text(
                             _isSameDay(_selectedDate, DateTime.now())
-                                ? "Today's Projects & Schedule"
-                                : "Schedule for ${DateFormat('dd MMM yyyy').format(_selectedDate)}",
+                                ? "Today's Scheduled Goals"
+                                : "Goals for ${DateFormat('dd MMM yyyy').format(_selectedDate)}",
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -172,32 +439,32 @@ class _CalendarMeetingScreenState extends State<CalendarMeetingScreen> {
                             ),
                           ),
                           Text(
-                            "${tasksForSelectedDate.length} project(s) scheduled",
+                            "${goalsForSelectedDate.length} goal(s) scheduled",
                             style: const TextStyle(fontSize: 12, color: AppColors.subText),
                           ),
                         ],
                       ),
                       IconButton(
-                        onPressed: () => _showCreateTaskModal(context),
+                        onPressed: () => _showCreateGoalModal(context),
                         icon: const Icon(Icons.add_circle_outline_rounded, color: AppColors.darkText, size: 22),
-                        tooltip: 'Add task for this date',
+                        tooltip: 'Add goal for this date',
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
 
-                  // Tasks / Projects for Selected Date
-                  if (tasksForSelectedDate.isNotEmpty)
-                    ...tasksForSelectedDate.map((task) => _buildProjectCard(context, task))
+                  // Goals for Selected Date
+                  if (goalsForSelectedDate.isNotEmpty)
+                    ...goalsForSelectedDate.map((goal) => _buildGoalCard(context, goal))
                   else
                     _buildEmptyDateState(context),
 
                   const SizedBox(height: 24),
 
-                  // Active Projects Section
-                  if (allTasks.isNotEmpty) ...[
+                  // All Active Goals / Tasks Section
+                  if (allGoals.isNotEmpty) ...[
                     const Text(
-                      "All Active Projects",
+                      "All Active Goals & Tasks",
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -205,7 +472,7 @@ class _CalendarMeetingScreenState extends State<CalendarMeetingScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    ...allTasks.take(3).map((task) => _buildProjectCard(context, task, isCompact: true)),
+                    ...allGoals.take(5).map((goal) => _buildGoalCard(context, goal, isCompact: true)),
                   ],
 
                   const SizedBox(height: 100),
@@ -218,10 +485,10 @@ class _CalendarMeetingScreenState extends State<CalendarMeetingScreen> {
     );
   }
 
-  Widget _buildCalendarGrid(List<Task> tasks) {
+  Widget _buildCalendarGrid(List<TaskGoal> goals) {
     final daysInMonth = DateUtils.getDaysInMonth(_selectedMonth.year, _selectedMonth.month);
     final firstDayOfMonth = DateTime(_selectedMonth.year, _selectedMonth.month, 1);
-    final startingWeekday = firstDayOfMonth.weekday % 7; // 0 = Sun, 1 = Mon ...
+    final startingWeekday = firstDayOfMonth.weekday % 7;
     final totalGridItems = startingWeekday + daysInMonth;
 
     final weekdays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -274,8 +541,11 @@ class _CalendarMeetingScreenState extends State<CalendarMeetingScreen> {
               final isSelected = _isSameDay(cellDate, _selectedDate);
               final isToday = _isSameDay(cellDate, DateTime.now());
 
-              // Check if any project has due date on cellDate
-              final hasTaskOnDay = tasks.any((t) => _isSameDay(t.dueDate, cellDate));
+              // Check if any goal has due date or created date on cellDate
+              final hasGoalOnDay = goals.any((g) {
+                final target = g.dueDate ?? g.createdAt;
+                return _isSameDay(target, cellDate);
+              });
 
               return GestureDetector(
                 onTap: () => setState(() => _selectedDate = cellDate),
@@ -286,7 +556,7 @@ class _CalendarMeetingScreenState extends State<CalendarMeetingScreen> {
                         ? AppColors.blackButton
                         : (isToday
                             ? AppColors.primaryCard
-                            : (hasTaskOnDay ? AppColors.accentYellow.withValues(alpha: 0.5) : Colors.transparent)),
+                            : (hasGoalOnDay ? AppColors.accentYellow.withValues(alpha: 0.5) : Colors.transparent)),
                     shape: BoxShape.circle,
                     border: isToday && !isSelected
                         ? Border.all(color: AppColors.darkText, width: 1.5)
@@ -299,18 +569,18 @@ class _CalendarMeetingScreenState extends State<CalendarMeetingScreen> {
                         '$dayNumber',
                         style: TextStyle(
                           fontSize: 13,
-                          fontWeight: isSelected || isToday || hasTaskOnDay ? FontWeight.bold : FontWeight.normal,
+                          fontWeight: isSelected || isToday || hasGoalOnDay ? FontWeight.bold : FontWeight.normal,
                           color: isSelected ? Colors.white : AppColors.darkText,
                         ),
                       ),
-                      if (hasTaskOnDay && !isSelected)
+                      if (hasGoalOnDay)
                         Positioned(
                           bottom: 4,
                           child: Container(
                             width: 4,
                             height: 4,
-                            decoration: const BoxDecoration(
-                              color: AppColors.darkText,
+                            decoration: BoxDecoration(
+                              color: isSelected ? Colors.white : AppColors.darkText,
                               shape: BoxShape.circle,
                             ),
                           ),
@@ -326,107 +596,90 @@ class _CalendarMeetingScreenState extends State<CalendarMeetingScreen> {
     );
   }
 
-  Widget _buildProjectCard(BuildContext context, Task task, {bool isCompact = false}) {
-    final progressPercent = (task.progress * 100).toInt();
+  Widget _buildGoalCard(BuildContext context, TaskGoal goal, {bool isCompact = false}) {
+    String displayProjectName = goal.projectName;
+    try {
+      final taskState = context.read<TaskBloc>().state;
+      if (taskState is TaskLoaded) {
+        final matching = taskState.tasks.where((t) => t.id == goal.taskId);
+        if (matching.isNotEmpty && matching.first.title.isNotEmpty) {
+          displayProjectName = matching.first.title;
+        }
+      }
+    } catch (_) {}
+    if (displayProjectName.isEmpty) {
+      displayProjectName = 'Charty App';
+    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: InkWell(
+        onTap: () => _navigateToTaskDetail(context, goal),
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
             children: [
-              Expanded(
-                child: Text(
-                  task.title,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.darkText),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              _buildStatusPill(task.status),
-            ],
-          ),
-          if (task.description != null && task.description!.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Text(
-              task.description!,
-              style: const TextStyle(fontSize: 13, color: AppColors.subText),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-          const SizedBox(height: 14),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.calendar_today_rounded, size: 14, color: AppColors.subText),
-                  const SizedBox(width: 6),
-                  Text(
-                    task.dueDate != null ? DateFormat('dd MMM yyyy').format(task.dueDate!) : 'No due date',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.darkText),
-                  ),
-                ],
-              ),
-              Text('$progressPercent%', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.subText)),
-            ],
-          ),
-          const SizedBox(height: 8),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: LinearProgressIndicator(
-              value: task.progress.clamp(0.0, 1.0),
-              minHeight: 6,
-              backgroundColor: AppColors.chipBackground,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                task.status == TaskStatus.done
-                    ? Colors.green
-                    : (task.priority == TaskPriority.high ? AppColors.priorityHigh : AppColors.darkText),
-              ),
-            ),
-          ),
-          const SizedBox(height: 14),
-          
-          // Action Buttons: Goals & Chat
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    side: const BorderSide(color: AppColors.chipBackground),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  ),
-                  onPressed: () => _navigateToDetail(context, task, initialTab: 0),
-                  icon: const Icon(Icons.flag_outlined, size: 16, color: AppColors.darkText),
-                  label: const Text('Project Goals', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.darkText)),
-                ),
+              Checkbox(
+                value: goal.isCompleted,
+                activeColor: AppColors.blackButton,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                onChanged: (_) {
+                  context.read<GoalBloc>().add(ToggleGoalRequested(goal));
+                },
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.blackButton,
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  ),
-                  onPressed: () => _navigateToDetail(context, task, initialTab: 1),
-                  icon: const Icon(Icons.chat_bubble_outline_rounded, size: 16, color: Colors.white),
-                  label: const Text('Project Chat', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      goal.title,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.darkText,
+                        decoration: goal.isCompleted ? TextDecoration.lineThrough : null,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.chipBackground,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            displayProjectName,
+                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.subText),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        if (goal.dueDate != null) ...[
+                          const Icon(Icons.calendar_today_rounded, size: 12, color: AppColors.subText),
+                          const SizedBox(width: 4),
+                          Text(
+                            DateFormat('dd MMM').format(goal.dueDate!),
+                            style: const TextStyle(fontSize: 11, color: AppColors.subText),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
                 ),
               ),
+              _buildPriorityPill(goal.priority),
+              const SizedBox(width: 4),
+              const Icon(Icons.chevron_right_rounded, color: AppColors.subText, size: 20),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -441,15 +694,15 @@ class _CalendarMeetingScreenState extends State<CalendarMeetingScreen> {
       ),
       child: Column(
         children: [
-          const Icon(Icons.event_available_rounded, size: 36, color: AppColors.subText),
+          const Icon(Icons.flag_outlined, size: 36, color: AppColors.subText),
           const SizedBox(height: 8),
           const Text(
-            'No projects due on this date',
+            'No goals scheduled on this date',
             style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.darkText),
           ),
           const SizedBox(height: 4),
           const Text(
-            'Select another date or add a project task for this date.',
+            'Select another date or add a new goal for this date.',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 12, color: AppColors.subText),
           ),
@@ -460,47 +713,43 @@ class _CalendarMeetingScreenState extends State<CalendarMeetingScreen> {
               elevation: 0,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             ),
-            onPressed: () => _showCreateTaskModal(context),
+            onPressed: () => _showCreateGoalModal(context),
             icon: const Icon(Icons.add_rounded, size: 16, color: AppColors.darkText),
-            label: const Text('Add Task for this Date', style: TextStyle(color: AppColors.darkText, fontWeight: FontWeight.bold, fontSize: 13)),
+            label: const Text('Add Goal for this Date', style: TextStyle(color: AppColors.darkText, fontWeight: FontWeight.bold, fontSize: 13)),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildStatusPill(TaskStatus status) {
+  Widget _buildPriorityPill(TaskPriority priority) {
     Color bg;
     Color fg;
-    String label;
 
-    switch (status) {
-      case TaskStatus.todo:
+    switch (priority) {
+      case TaskPriority.low:
         bg = Colors.grey.shade200;
         fg = AppColors.darkText;
-        label = 'TO DO';
         break;
-      case TaskStatus.inProgress:
+      case TaskPriority.medium:
         bg = AppColors.accentYellow;
         fg = AppColors.darkText;
-        label = 'IN PROGRESS';
         break;
-      case TaskStatus.done:
-        bg = Colors.green.shade100;
-        fg = Colors.green.shade800;
-        label = 'DONE';
+      case TaskPriority.high:
+        bg = Colors.red.shade100;
+        fg = Colors.red.shade800;
         break;
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Text(
-        label,
-        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: fg),
+        priority.name.toUpperCase(),
+        style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: fg),
       ),
     );
   }

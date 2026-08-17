@@ -104,7 +104,7 @@ class _TaskDetailViewState extends State<_TaskDetailView> {
 
   void _showAddGoalBottomSheet(BuildContext context) {
     final titleController = TextEditingController();
-    final projectController = TextEditingController(text: 'Charty App');
+    final projectController = TextEditingController(text: widget.task.title);
     TaskPriority priority = TaskPriority.medium;
     DateTime? dueDate = DateTime.now().add(const Duration(days: 3));
 

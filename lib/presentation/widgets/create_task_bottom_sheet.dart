@@ -6,12 +6,14 @@ import '../theme/app_colors.dart';
 class CreateTaskBottomSheet extends StatefulWidget {
   final String workspaceId;
   final Task? taskToEdit;
+  final DateTime? initialDate;
   final Function(Task) onTaskCreated;
 
   const CreateTaskBottomSheet({
     super.key,
     required this.workspaceId,
     this.taskToEdit,
+    this.initialDate,
     required this.onTaskCreated,
   });
 
@@ -33,13 +35,13 @@ class _CreateTaskBottomSheetState extends State<CreateTaskBottomSheet> {
     _descController = TextEditingController(text: widget.taskToEdit?.description ?? '');
     _priority = widget.taskToEdit?.priority ?? TaskPriority.medium;
     _status = widget.taskToEdit?.status ?? TaskStatus.todo;
-    _dueDate = widget.taskToEdit?.dueDate;
+    _dueDate = widget.taskToEdit?.dueDate ?? widget.initialDate ?? DateTime.now();
   }
 
   Future<void> _pickDueDate() async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: _dueDate ?? DateTime.now().add(const Duration(days: 1)),
+      initialDate: _dueDate ?? DateTime.now(),
       firstDate: DateTime.now().subtract(const Duration(days: 365)),
       lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
     );
@@ -79,14 +81,14 @@ class _CreateTaskBottomSheetState extends State<CreateTaskBottomSheet> {
           ),
           const SizedBox(height: 16),
           Text(
-            isEditing ? 'Edit Task' : 'Create New Task',
+            isEditing ? 'Edit Project' : 'Create New Project',
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.darkText),
           ),
           const SizedBox(height: 16),
           TextField(
             controller: _titleController,
             decoration: InputDecoration(
-              hintText: 'Task Title',
+              hintText: 'Project Title',
               filled: true,
               fillColor: AppColors.chipBackground,
               border: OutlineInputBorder(
@@ -130,7 +132,7 @@ class _CreateTaskBottomSheetState extends State<CreateTaskBottomSheet> {
                       Text(
                         _dueDate != null
                             ? DateFormat('dd MMMM yyyy').format(_dueDate!)
-                            : 'Select Due Date',
+                            : 'Select Date',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: _dueDate != null ? FontWeight.bold : FontWeight.normal,
@@ -141,8 +143,8 @@ class _CreateTaskBottomSheetState extends State<CreateTaskBottomSheet> {
                   ),
                   if (_dueDate != null)
                     GestureDetector(
-                      onTap: () => setState(() => _dueDate = null),
-                      child: const Icon(Icons.close_rounded, size: 18, color: AppColors.subText),
+                      onTap: () => setState(() => _dueDate = DateTime.now()),
+                      child: const Icon(Icons.refresh_rounded, size: 18, color: AppColors.subText),
                     )
                   else
                     const Icon(Icons.arrow_drop_down, color: AppColors.subText),
@@ -177,30 +179,32 @@ class _CreateTaskBottomSheetState extends State<CreateTaskBottomSheet> {
                   },
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: DropdownButtonFormField<TaskStatus>(
-                  initialValue: _status,
-                  decoration: InputDecoration(
-                    labelText: 'Status',
-                    filled: true,
-                    fillColor: AppColors.chipBackground,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: BorderSide.none,
+              if (isEditing) ...[
+                const SizedBox(width: 12),
+                Expanded(
+                  child: DropdownButtonFormField<TaskStatus>(
+                    initialValue: _status,
+                    decoration: InputDecoration(
+                      labelText: 'Status',
+                      filled: true,
+                      fillColor: AppColors.chipBackground,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide.none,
+                      ),
                     ),
+                    items: TaskStatus.values
+                        .map((s) => DropdownMenuItem(
+                              value: s,
+                              child: Text(s.name.toUpperCase()),
+                            ))
+                        .toList(),
+                    onChanged: (val) {
+                      if (val != null) setState(() => _status = val);
+                    },
                   ),
-                  items: TaskStatus.values
-                      .map((s) => DropdownMenuItem(
-                            value: s,
-                            child: Text(s.name.toUpperCase()),
-                          ))
-                      .toList(),
-                  onChanged: (val) {
-                    if (val != null) setState(() => _status = val);
-                  },
                 ),
-              ),
+              ],
             ],
           ),
           const SizedBox(height: 20),
@@ -223,7 +227,7 @@ class _CreateTaskBottomSheetState extends State<CreateTaskBottomSheet> {
                   description: _descController.text.trim().isEmpty ? null : _descController.text.trim(),
                   status: _status,
                   priority: _priority,
-                  dueDate: _dueDate,
+                  dueDate: _dueDate ?? DateTime.now(),
                   position: widget.taskToEdit?.position ?? 0,
                   progress: widget.taskToEdit?.progress ?? 0.0,
                   createdAt: widget.taskToEdit?.createdAt ?? DateTime.now(),
@@ -233,7 +237,7 @@ class _CreateTaskBottomSheetState extends State<CreateTaskBottomSheet> {
                 Navigator.pop(context);
               },
               child: Text(
-                isEditing ? 'Save Changes' : 'Create Task',
+                isEditing ? 'Save Changes' : 'Create Project',
                 style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/task_model.dart';
@@ -29,8 +30,15 @@ abstract class TaskRemoteDataSource {
 
 class TaskRemoteDataSourceImpl implements TaskRemoteDataSource {
   final SupabaseClient supabaseClient;
+  final StreamController<List<TaskGoalModel>> _mockGoalsController = StreamController<List<TaskGoalModel>>.broadcast();
 
   TaskRemoteDataSourceImpl(this.supabaseClient);
+
+  void _notifyMockGoalsChanged() {
+    if (!_mockGoalsController.isClosed) {
+      _mockGoalsController.add(List<TaskGoalModel>.from(_mockGoals));
+    }
+  }
 
   // Mock initial tasks for fallback UI
   static final List<TaskModel> _mockTasks = [
@@ -97,7 +105,7 @@ class TaskRemoteDataSourceImpl implements TaskRemoteDataSource {
   Future<List<TaskModel>> getTasks(String workspaceId) async {
     try {
       final response = await supabaseClient
-          .from('tasks')
+          .from('projects')
           .select()
           .eq('workspace_id', workspaceId)
           .order('position', ascending: true);
@@ -113,7 +121,7 @@ class TaskRemoteDataSourceImpl implements TaskRemoteDataSource {
   Stream<List<TaskModel>> watchTasks(String workspaceId) {
     try {
       return supabaseClient
-          .from('tasks')
+          .from('projects')
           .stream(primaryKey: ['id'])
           .eq('workspace_id', workspaceId)
           .map((maps) {
@@ -137,7 +145,7 @@ class TaskRemoteDataSourceImpl implements TaskRemoteDataSource {
       }
 
       final response = await supabaseClient
-          .from('tasks')
+          .from('projects')
           .insert(json)
           .select()
           .single();
@@ -154,7 +162,7 @@ class TaskRemoteDataSourceImpl implements TaskRemoteDataSource {
     try {
       final json = task.toJson();
       await supabaseClient
-          .from('tasks')
+          .from('projects')
           .update(json)
           .eq('id', task.id);
     } catch (e) {
@@ -166,7 +174,7 @@ class TaskRemoteDataSourceImpl implements TaskRemoteDataSource {
   @override
   Future<void> deleteTask(String taskId) async {
     try {
-      await supabaseClient.from('tasks').delete().eq('id', taskId);
+      await supabaseClient.from('projects').delete().eq('id', taskId);
     } catch (e) {
       debugPrint('Supabase deleteTask Error: $e');
       rethrow;
@@ -180,7 +188,7 @@ class TaskRemoteDataSourceImpl implements TaskRemoteDataSource {
     required int newPosition,
   }) async {
     try {
-      await supabaseClient.from('tasks').update({
+      await supabaseClient.from('projects').update({
         'status': newStatus.toDbValue(),
         'position': newPosition,
         'updated_at': DateTime.now().toIso8601String(),
@@ -195,9 +203,9 @@ class TaskRemoteDataSourceImpl implements TaskRemoteDataSource {
   Stream<List<TaskCommentModel>> watchComments(String taskId) {
     try {
       return supabaseClient
-          .from('task_comments')
+          .from('project_comments')
           .stream(primaryKey: ['id'])
-          .eq('task_id', taskId)
+          .eq('project_id', taskId)
           .order('created_at', ascending: true)
           .map((maps) => maps.map((map) => TaskCommentModel.fromJson(map)).toList());
     } catch (e) {
@@ -214,7 +222,9 @@ class TaskRemoteDataSourceImpl implements TaskRemoteDataSource {
       if (user != null) {
         json['user_id'] = user.id;
       }
-      await supabaseClient.from('task_comments').insert(json);
+      json['project_id'] = comment.taskId;
+      json.remove('task_id');
+      await supabaseClient.from('project_comments').insert(json);
     } catch (e) {
       debugPrint('Supabase addComment Error: $e');
       rethrow;
@@ -223,17 +233,33 @@ class TaskRemoteDataSourceImpl implements TaskRemoteDataSource {
 
   // --- Goals ---
   @override
-  Stream<List<TaskGoalModel>> watchGoals(String taskId) {
+  Stream<List<TaskGoalModel>> watchGoals(String taskId) async* {
     try {
-      return supabaseClient
-          .from('task_goals')
-          .stream(primaryKey: ['id'])
-          .eq('task_id', taskId)
-          .order('created_at', ascending: true)
-          .map((maps) => maps.map((map) => TaskGoalModel.fromJson(map)).toList());
+      if (taskId.isNotEmpty) {
+        yield* supabaseClient
+            .from('project_goals')
+            .stream(primaryKey: ['id'])
+            .eq('project_id', taskId)
+            .order('created_at', ascending: true)
+            .map((maps) => maps.map((map) => TaskGoalModel.fromJson(map)).toList());
+      } else {
+        yield* supabaseClient
+            .from('project_goals')
+            .stream(primaryKey: ['id'])
+            .order('created_at', ascending: true)
+            .map((maps) => maps.map((map) => TaskGoalModel.fromJson(map)).toList());
+      }
     } catch (e) {
       debugPrint('Supabase watchGoals Error: $e');
-      return Stream.value(_mockGoals.where((g) => g.taskId == taskId || taskId.isNotEmpty).toList());
+      final current = taskId.isNotEmpty
+          ? _mockGoals.where((g) => g.taskId == taskId).toList()
+          : List<TaskGoalModel>.from(_mockGoals);
+      yield current;
+      yield* _mockGoalsController.stream.map((list) {
+        return taskId.isNotEmpty
+            ? list.where((g) => g.taskId == taskId).toList()
+            : List<TaskGoalModel>.from(list);
+      });
     }
   }
 
@@ -242,16 +268,19 @@ class TaskRemoteDataSourceImpl implements TaskRemoteDataSource {
     try {
       final json = goal.toJson();
       final response = await supabaseClient
-          .from('task_goals')
+          .from('project_goals')
           .insert(json)
           .select()
           .single();
 
-      return TaskGoalModel.fromJson(response);
+      final created = TaskGoalModel.fromJson(response);
+      _mockGoals.add(created);
+      _notifyMockGoalsChanged();
+      return created;
     } catch (e) {
       debugPrint('Supabase createGoal Error: $e');
-      // Fallback update mock in case of offline/no DB backend setup
       _mockGoals.add(goal);
+      _notifyMockGoalsChanged();
       return goal;
     }
   }
@@ -261,25 +290,34 @@ class TaskRemoteDataSourceImpl implements TaskRemoteDataSource {
     try {
       final json = goal.toJson();
       await supabaseClient
-          .from('task_goals')
+          .from('project_goals')
           .update(json)
           .eq('id', goal.id);
+      final index = _mockGoals.indexWhere((g) => g.id == goal.id);
+      if (index != -1) {
+        _mockGoals[index] = goal;
+      }
+      _notifyMockGoalsChanged();
     } catch (e) {
       debugPrint('Supabase updateGoal Error: $e');
       final index = _mockGoals.indexWhere((g) => g.id == goal.id);
       if (index != -1) {
         _mockGoals[index] = goal;
       }
+      _notifyMockGoalsChanged();
     }
   }
 
   @override
   Future<void> deleteGoal(String goalId) async {
     try {
-      await supabaseClient.from('task_goals').delete().eq('id', goalId);
+      await supabaseClient.from('project_goals').delete().eq('id', goalId);
+      _mockGoals.removeWhere((g) => g.id == goalId);
+      _notifyMockGoalsChanged();
     } catch (e) {
       debugPrint('Supabase deleteGoal Error: $e');
       _mockGoals.removeWhere((g) => g.id == goalId);
+      _notifyMockGoalsChanged();
     }
   }
 }

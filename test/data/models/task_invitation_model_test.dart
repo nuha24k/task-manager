@@ -61,7 +61,7 @@ void main() {
       // Assert
       final expectedJsonMap = {
         'id': 'inv1',
-        'task_id': 't1',
+        'project_id': 't1',
         'inviter_id': 'u1',
         'token': 'tok123',
         'role': 'editor',

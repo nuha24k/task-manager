@@ -15,7 +15,7 @@ class TaskInvitationModel extends TaskInvitation {
   factory TaskInvitationModel.fromJson(Map<String, dynamic> json) {
     return TaskInvitationModel(
       id: json['id'] as String,
-      taskId: json['task_id'] as String,
+      taskId: (json['project_id'] ?? json['task_id']) as String,
       inviterId: json['inviter_id'] as String,
       token: json['token'] as String,
       role: json['role'] as String? ?? 'editor',
@@ -29,7 +29,7 @@ class TaskInvitationModel extends TaskInvitation {
 
   Map<String, dynamic> toJson() {
     final map = <String, dynamic>{
-      'task_id': taskId,
+      'project_id': taskId,
       'inviter_id': inviterId,
       'token': token,
       'role': role,

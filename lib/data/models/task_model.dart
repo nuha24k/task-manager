@@ -93,7 +93,7 @@ class TaskCommentModel extends TaskComment {
   factory TaskCommentModel.fromJson(Map<String, dynamic> json) {
     return TaskCommentModel(
       id: json['id'] as String,
-      taskId: json['task_id'] as String,
+      taskId: (json['project_id'] ?? json['task_id']) as String,
       userId: json['user_id'] as String,
       content: json['content'] as String,
       createdAt: DateTime.parse(json['created_at'] as String),
@@ -102,7 +102,7 @@ class TaskCommentModel extends TaskComment {
 
   Map<String, dynamic> toJson() {
     final map = <String, dynamic>{
-      'task_id': taskId,
+      'project_id': taskId,
       'user_id': userId,
       'content': content,
       'created_at': createdAt.toIso8601String(),

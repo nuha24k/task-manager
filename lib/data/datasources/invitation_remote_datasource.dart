@@ -30,9 +30,9 @@ class InvitationRemoteDataSourceImpl implements InvitationRemoteDataSource {
     DateTime? expiresAt,
   }) async {
     final response = await supabaseClient
-        .from('task_invitations')
+        .from('project_invitations')
         .insert({
-          'task_id': taskId,
+          'project_id': taskId,
           'inviter_id': inviterId,
           'role': role,
           'expires_at': expiresAt?.toIso8601String(),
@@ -47,7 +47,7 @@ class InvitationRemoteDataSourceImpl implements InvitationRemoteDataSource {
   @override
   Future<TaskInvitationModel> getInvitationByToken(String token) async {
     final response = await supabaseClient
-        .from('task_invitations')
+        .from('project_invitations')
         .select()
         .eq('token', token)
         .eq('is_active', true)
@@ -59,7 +59,7 @@ class InvitationRemoteDataSourceImpl implements InvitationRemoteDataSource {
   @override
   Future<AcceptInvitationResult> acceptInvitation(String token) async {
     final response = await supabaseClient.rpc(
-      'accept_task_invitation',
+      'accept_project_invitation',
       params: {'p_token': token},
     );
 
@@ -68,14 +68,14 @@ class InvitationRemoteDataSourceImpl implements InvitationRemoteDataSource {
       return AcceptInvitationResult(
         success: item['success'] as bool? ?? false,
         message: item['message'] as String? ?? 'Unknown status',
-        taskId: item['task_id'] as String?,
+        taskId: (item['project_id'] ?? item['task_id']) as String?,
       );
     } else if (response is Map) {
       final map = Map<String, dynamic>.from(response);
       return AcceptInvitationResult(
         success: map['success'] as bool? ?? false,
         message: map['message'] as String? ?? 'Unknown status',
-        taskId: map['task_id'] as String?,
+        taskId: (map['project_id'] ?? map['task_id']) as String?,
       );
     }
 
@@ -88,7 +88,7 @@ class InvitationRemoteDataSourceImpl implements InvitationRemoteDataSource {
   @override
   Future<void> revokeInvitation(String invitationId) async {
     await supabaseClient
-        .from('task_invitations')
+        .from('project_invitations')
         .update({'is_active': false})
         .eq('id', invitationId);
   }
