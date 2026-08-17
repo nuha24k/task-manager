@@ -5,13 +5,17 @@ import '../theme/app_colors.dart';
 class TaskCard extends StatelessWidget {
   final Task task;
   final VoidCallback? onTap;
+  final VoidCallback? onEditTap;
   final Color backgroundColor;
+  final int? commentCount;
 
   const TaskCard({
     super.key,
     required this.task,
     this.onTap,
+    this.onEditTap,
     this.backgroundColor = AppColors.primaryCard,
+    this.commentCount,
   });
 
   @override
@@ -31,40 +35,46 @@ class TaskCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.6),
-                        borderRadius: BorderRadius.circular(10),
+                Expanded(
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.6),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.space_dashboard_rounded,
+                          size: 16,
+                          color: AppColors.darkText,
+                        ),
                       ),
-                      child: const Icon(
-                        Icons.space_dashboard_rounded,
-                        size: 16,
-                        color: AppColors.darkText,
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          task.title,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.darkText,
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      task.title,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.darkText,
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.edit_outlined, size: 18, color: AppColors.darkText),
-                  onPressed: () {},
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                ),
+                if (onEditTap != null)
+                  IconButton(
+                    icon: const Icon(Icons.edit_outlined, size: 18, color: AppColors.darkText),
+                    onPressed: onEditTap,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
               ],
             ),
-            const SizedBox(width: 0, height: 12),
+            const SizedBox(height: 12),
             Row(
               children: [
                 _buildStatusPill(task.status),
@@ -87,32 +97,8 @@ class TaskCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Stacked Avatars Mock
-                Row(
-                  children: [
-                    _buildAvatar('https://i.pravatar.cc/100?img=1'),
-                    Transform.translate(
-                      offset: const Offset(-8, 0),
-                      child: _buildAvatar('https://i.pravatar.cc/100?img=2'),
-                    ),
-                    if (task.assigneeIds.length > 2)
-                      Transform.translate(
-                        offset: const Offset(-16, 0),
-                        child: CircleAvatar(
-                          radius: 12,
-                          backgroundColor: Colors.white,
-                          child: Text(
-                            '+${task.assigneeIds.length - 2}',
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.darkText,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
+                // Stacked Avatars based on assigneeIds
+                _buildAssigneesList(),
                 Row(
                   children: [
                     Container(
@@ -131,7 +117,6 @@ class TaskCard extends StatelessWidget {
                                 : "No date",
                             style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
                           ),
-                          const Icon(Icons.keyboard_arrow_down, size: 14, color: AppColors.subText),
                         ],
                       ),
                     ),
@@ -142,11 +127,14 @@ class TaskCard extends StatelessWidget {
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: const Row(
+                      child: Row(
                         children: [
-                          Icon(Icons.chat_bubble_outline, size: 12, color: AppColors.subText),
-                          SizedBox(width: 4),
-                          Text('03', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                          const Icon(Icons.chat_bubble_outline, size: 12, color: AppColors.subText),
+                          const SizedBox(width: 4),
+                          Text(
+                            commentCount != null ? (commentCount! < 10 ? '0$commentCount' : '$commentCount') : '00',
+                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                          ),
                         ],
                       ),
                     ),
@@ -157,6 +145,38 @@ class TaskCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildAssigneesList() {
+    final assignees = task.assigneeIds.isNotEmpty ? task.assigneeIds : ['u1', 'u2'];
+    final displayAssignees = assignees.take(2).toList();
+    final remaining = assignees.length - 2;
+
+    return Row(
+      children: [
+        for (int i = 0; i < displayAssignees.length; i++)
+          Transform.translate(
+            offset: Offset(i * -8.0, 0),
+            child: _buildAvatar('https://i.pravatar.cc/100?img=${(displayAssignees[i].hashCode % 70) + 1}'),
+          ),
+        if (remaining > 0)
+          Transform.translate(
+            offset: Offset(displayAssignees.length * -8.0, 0),
+            child: CircleAvatar(
+              radius: 12,
+              backgroundColor: Colors.white,
+              child: Text(
+                '+$remaining',
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.darkText,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 

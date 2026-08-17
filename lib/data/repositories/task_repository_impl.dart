@@ -1,8 +1,10 @@
 import 'package:fpdart/fpdart.dart' hide Task;
 import '../../domain/entities/task.dart';
+import '../../domain/entities/task_goal.dart';
 import '../../domain/repositories/task_repository.dart';
 import '../datasources/task_remote_data_source.dart';
 import '../models/task_model.dart';
+import '../models/task_goal_model.dart';
 
 class TaskRepositoryImpl implements TaskRepository {
   final TaskRemoteDataSource remoteDataSource;
@@ -87,6 +89,43 @@ class TaskRepositoryImpl implements TaskRepository {
       return const Right(null);
     } catch (e) {
       return Left(Exception('Failed to add comment: $e'));
+    }
+  }
+
+  @override
+  Stream<List<TaskGoal>> watchGoals(String taskId) {
+    return remoteDataSource.watchGoals(taskId);
+  }
+
+  @override
+  Future<Either<Exception, TaskGoal>> createGoal(TaskGoal goal) async {
+    try {
+      final goalModel = TaskGoalModel.fromEntity(goal);
+      final created = await remoteDataSource.createGoal(goalModel);
+      return Right(created);
+    } catch (e) {
+      return Left(Exception('Failed to create goal: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Exception, void>> updateGoal(TaskGoal goal) async {
+    try {
+      final goalModel = TaskGoalModel.fromEntity(goal);
+      await remoteDataSource.updateGoal(goalModel);
+      return const Right(null);
+    } catch (e) {
+      return Left(Exception('Failed to update goal: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Exception, void>> deleteGoal(String goalId) async {
+    try {
+      await remoteDataSource.deleteGoal(goalId);
+      return const Right(null);
+    } catch (e) {
+      return Left(Exception('Failed to delete goal: $e'));
     }
   }
 }

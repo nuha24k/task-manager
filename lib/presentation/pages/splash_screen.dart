@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../injection.dart';
-import '../blocs/task_bloc.dart';
+import '../blocs/auth_bloc.dart';
 import '../theme/app_colors.dart';
-import 'dashboard_kanban_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -35,32 +32,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     );
 
     _controller.forward();
-    _checkAuthAndNavigate();
-  }
 
-  Future<void> _checkAuthAndNavigate() async {
-    await Future.delayed(const Duration(seconds: 2));
-    if (!mounted) return;
-
-    try {
-      final session = sl<SupabaseClient>().auth.currentSession;
-      if (session != null) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => BlocProvider(
-              create: (_) => sl<TaskBloc>(),
-              child: const DashboardKanbanScreen(),
-            ),
-          ),
-        );
-        return;
-      }
-    } catch (_) {
-      // Catch error if Supabase is not initialized yet and navigate safely to login screen
-    }
-
-    Navigator.pushReplacementNamed(context, '/login');
+    // Trigger auth check
+    context.read<AuthBloc>().add(CheckAuthStatusRequested());
   }
 
   @override
@@ -71,64 +45,78 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Center(
-        child: FadeTransition(
-          opacity: _fadeAnimation,
-          child: ScaleTransition(
-            scale: _scaleAnimation,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: 90,
-                  height: 90,
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryCard,
-                    borderRadius: BorderRadius.circular(28),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.priorityHigh.withValues(alpha: 0.2),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
+    return BlocListener<AuthBloc, AuthState>(
+      listener: (context, state) {
+        final nav = Navigator.of(context);
+        if (state is Authenticated) {
+          Future.delayed(const Duration(milliseconds: 500), () {
+            nav.pushReplacementNamed('/dashboard');
+          });
+        } else if (state is Unauthenticated) {
+          Future.delayed(const Duration(milliseconds: 500), () {
+            nav.pushReplacementNamed('/login');
+          });
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: ScaleTransition(
+              scale: _scaleAnimation,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 90,
+                    height: 90,
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryCard,
+                      borderRadius: BorderRadius.circular(28),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.priorityHigh.withValues(alpha: 0.2),
+                          blurRadius: 20,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.space_dashboard_rounded,
+                      size: 44,
+                      color: AppColors.blackButton,
+                    ),
                   ),
-                  child: const Icon(
-                    Icons.space_dashboard_rounded,
-                    size: 44,
-                    color: AppColors.blackButton,
+                  const SizedBox(height: 24),
+                  const Text(
+                    'TaskFlow',
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.darkText,
+                      letterSpacing: -0.5,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  'TaskFlow',
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.darkText,
-                    letterSpacing: -0.5,
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Master your projects effortlessly',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.subText,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Master your projects effortlessly',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppColors.subText,
+                  const SizedBox(height: 48),
+                  const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: AppColors.blackButton,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 48),
-                const SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.5,
-                    color: AppColors.blackButton,
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

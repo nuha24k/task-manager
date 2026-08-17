@@ -1,9 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fpdart/fpdart.dart' hide Task;
 import 'package:mocktail/mocktail.dart';
-import 'package:task_management/domain/entities/task.dart';
 import 'package:task_management/domain/repositories/task_repository.dart';
 import 'package:task_management/domain/usecases/task_usecases.dart';
+
+import '../../helpers/dummy_data.dart';
 
 class MockTaskRepository extends Mock implements TaskRepository {}
 
@@ -11,27 +12,15 @@ void main() {
   late MockTaskRepository mockRepository;
   late GetTasksUseCase getTasksUseCase;
   late CreateTaskUseCase createTaskUseCase;
+  late UpdateTaskUseCase updateTaskUseCase;
   late ReorderTaskUseCase reorderTaskUseCase;
   late DeleteTaskUseCase deleteTaskUseCase;
-
-  final tCreatedAt = DateTime.parse('2026-08-16T00:00:00.000Z');
-  final tUpdatedAt = DateTime.parse('2026-08-16T01:00:00.000Z');
-
-  final tTask = Task(
-    id: 't1',
-    workspaceId: 'ws1',
-    title: 'Domain Task',
-    status: TaskStatus.todo,
-    priority: TaskPriority.high,
-    position: 0,
-    createdAt: tCreatedAt,
-    updatedAt: tUpdatedAt,
-  );
 
   setUp(() {
     mockRepository = MockTaskRepository();
     getTasksUseCase = GetTasksUseCase(mockRepository);
     createTaskUseCase = CreateTaskUseCase(mockRepository);
+    updateTaskUseCase = UpdateTaskUseCase(mockRepository);
     reorderTaskUseCase = ReorderTaskUseCase(mockRepository);
     deleteTaskUseCase = DeleteTaskUseCase(mockRepository);
     registerFallbackValue(tTask);
@@ -96,6 +85,22 @@ void main() {
             newStatus: TaskStatus.done,
             newPosition: 3,
           )).called(1);
+    });
+  });
+
+  group('UpdateTaskUseCase', () {
+    test('should forward update task request to repository', () async {
+      // Arrange
+      when(() => mockRepository.updateTask(any()))
+          .thenAnswer((_) async => const Right(null));
+
+      // Act
+      final result = await updateTaskUseCase(tTask);
+
+      // Assert
+      expect(result, equals(const Right(null)));
+      verify(() => mockRepository.updateTask(tTask)).called(1);
+      verifyNoMoreInteractions(mockRepository);
     });
   });
 

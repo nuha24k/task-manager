@@ -2,12 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/entities/task.dart';
 import '../blocs/task_bloc.dart';
+import '../blocs/auth_bloc.dart';
 import '../theme/app_colors.dart';
 import '../widgets/task_card.dart';
 import '../widgets/floating_bottom_nav_bar.dart';
 import '../widgets/create_task_bottom_sheet.dart';
+import '../widgets/invitation_preview_dialog.dart';
+import '../utils/deep_link_handler.dart';
 import 'task_detail_screen.dart';
+
 import 'calendar_meeting_screen.dart';
+import 'statistics_screen.dart';
+import 'user_profile_screen.dart';
 
 class DashboardKanbanScreen extends StatefulWidget {
   final String workspaceId;
@@ -28,183 +34,284 @@ class _DashboardKanbanScreenState extends State<DashboardKanbanScreen> {
   void initState() {
     super.initState();
     context.read<TaskBloc>().add(SubscribeToBoard(widget.workspaceId));
+    context.read<AuthBloc>().add(CheckAuthStatusRequested());
+
+    // Initialize DeepLinkHandler for invitation links
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      DeepLinkHandler.init(
+        onInvitationTokenReceived: (token) {
+          InvitationPreviewDialog.show(
+            context,
+            token,
+            onAccepted: () {
+              context.read<TaskBloc>().add(SubscribeToBoard(widget.workspaceId));
+            },
+          );
+        },
+      );
+    });
   }
 
-  void _showCreateBottomSheet() {
+  @override
+  void dispose() {
+    DeepLinkHandler.dispose();
+    super.dispose();
+  }
+
+
+  void _showCreateBottomSheet([Task? taskToEdit]) {
+    final taskBloc = context.read<TaskBloc>();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => CreateTaskBottomSheet(
-        workspaceId: widget.workspaceId,
-        onTaskCreated: (newTask) {
-          context.read<TaskBloc>().add(CreateTaskRequested(newTask));
-        },
+      builder: (ctx) => BlocProvider.value(
+        value: taskBloc,
+        child: CreateTaskBottomSheet(
+          workspaceId: widget.workspaceId,
+          taskToEdit: taskToEdit,
+          onTaskCreated: (task) {
+            if (taskToEdit != null) {
+              taskBloc.add(UpdateTaskRequested(task));
+            } else {
+              taskBloc.add(CreateTaskRequested(task));
+            }
+          },
+        ),
       ),
     );
   }
 
   void _navigateToDetail(Task task) {
+    final taskBloc = context.read<TaskBloc>();
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => TaskDetailScreen(task: task),
+        builder: (_) => BlocProvider.value(
+          value: taskBloc,
+          child: TaskDetailScreen(task: task),
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            IndexedStack(
-              index: _navIndex == 1 ? 1 : 0,
-              children: [
-                Column(
-                  children: [
-                    _buildHeader(),
-                    Expanded(
-                      child: BlocBuilder<TaskBloc, TaskState>(
-                        builder: (context, state) {
-                          if (state is TaskLoading) {
-                            return const Center(
-                              child: CircularProgressIndicator(color: AppColors.blackButton),
-                            );
-                          }
-                          if (state is TaskError) {
-                            return Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                                    child: Text(
-                                      state.message,
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(color: Colors.red),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  ElevatedButton(
-                                    onPressed: () {
-                                      context.read<TaskBloc>().add(SubscribeToBoard(widget.workspaceId));
-                                    },
-                                    child: const Text('Retry'),
-                                  ),
-                                ],
-                              ),
-                            );
-                          }
-                          
-                          List<Task> tasks = [];
-                          if (state is TaskLoaded) {
-                            tasks = state.tasks;
-                          }
-
-                          return RefreshIndicator(
-                            onRefresh: () async {
-                              context.read<TaskBloc>().add(SubscribeToBoard(widget.workspaceId));
-                            },
-                            child: ListView(
-                              padding: const EdgeInsets.symmetric(horizontal: 20),
-                              children: [
-                                const SizedBox(height: 12),
-                                _buildHeroBanner(),
-                                const SizedBox(height: 24),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return BlocListener<AuthBloc, AuthState>(
+      listener: (context, state) {
+        if (state is Unauthenticated) {
+          if (state.message != null && state.message!.isNotEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.message!),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: SafeArea(
+          child: Stack(
+            children: [
+              IndexedStack(
+                index: _navIndex,
+                children: [
+                  Column(
+                    children: [
+                      _buildHeader(),
+                      Expanded(
+                        child: BlocBuilder<TaskBloc, TaskState>(
+                          builder: (context, state) {
+                            if (state is TaskLoading) {
+                              return const Center(
+                                child: CircularProgressIndicator(color: AppColors.blackButton),
+                              );
+                            }
+                            if (state is TaskError) {
+                              return Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    const Text(
-                                      'Your task',
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.darkText,
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                                      child: Text(
+                                        state.message,
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(color: Colors.red),
                                       ),
                                     ),
-                                    TextButton(
-                                      onPressed: () {},
-                                      child: const Text(
-                                        'See All',
-                                        style: TextStyle(color: AppColors.subText, fontSize: 13),
-                                      ),
+                                    const SizedBox(height: 12),
+                                    ElevatedButton(
+                                      onPressed: () {
+                                        context.read<TaskBloc>().add(SubscribeToBoard(widget.workspaceId));
+                                      },
+                                      child: const Text('Retry'),
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 8),
-                                _buildKanbanView(tasks),
-                                const SizedBox(height: 100), // Spacing for floating navbar
-                              ],
-                            ),
-                          );
-                        },
+                              );
+                            }
+                            
+                            List<Task> tasks = [];
+                            if (state is TaskLoaded) {
+                              tasks = state.tasks;
+                            }
+
+                            return RefreshIndicator(
+                              onRefresh: () async {
+                                context.read<TaskBloc>().add(SubscribeToBoard(widget.workspaceId));
+                              },
+                              child: ListView(
+                                padding: const EdgeInsets.symmetric(horizontal: 20),
+                                children: [
+                                  const SizedBox(height: 12),
+                                  _buildHeroBanner(tasks),
+                                  const SizedBox(height: 24),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      const Text(
+                                        'Your task',
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.darkText,
+                                        ),
+                                      ),
+                                      TextButton(
+                                        onPressed: () {},
+                                        child: const Text(
+                                          'See All',
+                                          style: TextStyle(color: AppColors.subText, fontSize: 13),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  _buildKanbanView(tasks),
+                                  const SizedBox(height: 140), // Spacing for floating navbar & FAB
+                                ],
+                              ),
+                            );
+                          },
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const CalendarMeetingScreen(),
-              ],
-            ),
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: FloatingBottomNavBar(
-                selectedIndex: _navIndex,
-                onTap: (index) => setState(() => _navIndex = index),
-                onAddPressed: _showCreateBottomSheet,
+                    ],
+                  ),
+                  const CalendarMeetingScreen(),
+                  const StatisticsScreen(),
+                  const UserProfileScreen(),
+                ],
               ),
-            ),
-          ],
+              // Floating Bottom Navigation Bar
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: FloatingBottomNavBar(
+                  selectedIndex: _navIndex,
+                  onTap: (index) => setState(() => _navIndex = index),
+                ),
+              ),
+              // FAB Positioned exactly above the Bottom Navigation Bar
+              Positioned(
+                right: 28,
+                bottom: 80, // Positioned right above the bottom nav bar
+                child: FloatingActionButton(
+                  onPressed: () => _showCreateBottomSheet(),
+                  backgroundColor: AppColors.blackButton,
+                  elevation: 6,
+                  shape: const CircleBorder(),
+                  child: const Icon(Icons.add, color: Colors.white, size: 26),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          const Row(
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, state) {
+        String userName = 'Esther Howard';
+        String avatarUrl = 'https://i.pravatar.cc/100?img=33';
+
+        if (state is Authenticated) {
+          userName = state.user.name;
+          if (state.user.avatarUrl != null && state.user.avatarUrl!.isNotEmpty) {
+            avatarUrl = state.user.avatarUrl!;
+          }
+        }
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              CircleAvatar(
-                radius: 18,
-                backgroundImage: NetworkImage('https://i.pravatar.cc/100?img=33'),
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 18,
+                    backgroundImage: NetworkImage(avatarUrl),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    userName,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.darkText,
+                    ),
+                  ),
+                ],
               ),
-              SizedBox(width: 10),
-              Text(
-                'Esther Howard',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.darkText,
-                ),
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications_none_rounded, color: AppColors.darkText),
+                    onPressed: () {},
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.logout_rounded, color: AppColors.darkText),
+                    tooltip: 'Logout',
+                    onPressed: () {
+                      context.read<AuthBloc>().add(SignOutRequested());
+                    },
+                  ),
+                ],
               ),
             ],
           ),
-          Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.notifications_none_rounded, color: AppColors.darkText),
-                onPressed: () {},
-              ),
-              IconButton(
-                icon: const Icon(Icons.search_rounded, color: AppColors.darkText),
-                onPressed: () {},
-              ),
-            ],
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildHeroBanner() {
+  Widget _buildHeroBanner(List<Task> tasks) {
+    final totalTasks = tasks.length;
+    final completedTasks = tasks.where((t) => t.status == TaskStatus.done).length;
+    final inProgressTasks = tasks.where((t) => t.status == TaskStatus.inProgress).length;
+    final todoTasks = tasks.where((t) => t.status == TaskStatus.todo).length;
+
+    final double avgProgress = tasks.isEmpty
+        ? 0.0
+        : (tasks.fold<double>(0.0, (sum, t) => sum + t.progress) / totalTasks);
+    final int progressPercent = (avgProgress * 100).round();
+
+    String statText = totalTasks > 0 ? '$progressPercent% Completed' : '0 Projects';
+    String statSubtitle = totalTasks > 0
+        ? '$completedTasks completed • $inProgressTasks in progress • $todoTasks to do'
+        : 'Tap + to add your first project';
+
+    if (completedTasks == totalTasks && totalTasks > 0) {
+      statSubtitle = 'All $totalTasks projects completed! 🎉';
+    }
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -234,31 +341,36 @@ class _DashboardKanbanScreenState extends State<DashboardKanbanScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '7h 34 m',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        statText,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
                       ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Your task almost done',
-                      style: TextStyle(fontSize: 12, color: Colors.white70),
-                    ),
-                  ],
+                      const SizedBox(height: 4),
+                      Text(
+                        statSubtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 12, color: Colors.white70),
+                      ),
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 10),
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: AppColors.accentYellow,
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: const Icon(Icons.access_time_filled_rounded, color: AppColors.darkText, size: 28),
+                  child: const Icon(Icons.analytics_rounded, color: AppColors.darkText, size: 26),
                 ),
               ],
             ),
@@ -293,6 +405,7 @@ class _DashboardKanbanScreenState extends State<DashboardKanbanScreen> {
                 task: task,
                 backgroundColor: bgColor,
                 onTap: () => _navigateToDetail(task),
+                onEditTap: () => _showCreateBottomSheet(task),
               ),
             ),
           ),
@@ -302,6 +415,7 @@ class _DashboardKanbanScreenState extends State<DashboardKanbanScreen> {
               task: task,
               backgroundColor: bgColor,
               onTap: () => _navigateToDetail(task),
+              onEditTap: () => _showCreateBottomSheet(task),
             ),
           ),
           child: DragTarget<Task>(
@@ -320,6 +434,7 @@ class _DashboardKanbanScreenState extends State<DashboardKanbanScreen> {
                 task: task,
                 backgroundColor: bgColor,
                 onTap: () => _navigateToDetail(task),
+                onEditTap: () => _showCreateBottomSheet(task),
               );
             },
           ),

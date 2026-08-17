@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'injection.dart';
 import 'presentation/blocs/task_bloc.dart';
+import 'presentation/blocs/auth_bloc.dart';
 import 'presentation/pages/splash_screen.dart';
 import 'presentation/pages/login_screen.dart';
 import 'presentation/pages/dashboard_kanban_screen.dart';
@@ -26,24 +27,27 @@ class TaskManagerApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'TaskFlow Manager',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        textTheme: GoogleFonts.plusJakartaSansTextTheme(
-          Theme.of(context).textTheme,
+    return BlocProvider<AuthBloc>(
+      create: (context) => sl<AuthBloc>()..add(CheckAuthStatusRequested()),
+      child: MaterialApp(
+        title: 'TaskFlow Manager',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          useMaterial3: true,
+          textTheme: GoogleFonts.plusJakartaSansTextTheme(
+            Theme.of(context).textTheme,
+          ),
         ),
+        initialRoute: '/',
+        routes: {
+          '/': (context) => const SplashScreen(),
+          '/login': (context) => const LoginScreen(),
+          '/dashboard': (context) => BlocProvider(
+                create: (_) => sl<TaskBloc>(),
+                child: const DashboardKanbanScreen(),
+              ),
+        },
       ),
-      initialRoute: '/',
-      routes: {
-        '/': (context) => const SplashScreen(),
-        '/login': (context) => const LoginScreen(),
-        '/dashboard': (context) => BlocProvider(
-              create: (_) => sl<TaskBloc>(),
-              child: const DashboardKanbanScreen(),
-            ),
-      },
     );
   }
 }

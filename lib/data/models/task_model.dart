@@ -40,8 +40,7 @@ class TaskModel extends Task {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'id': id,
+    final map = <String, dynamic>{
       'workspace_id': workspaceId,
       'title': title,
       'description': description,
@@ -51,10 +50,16 @@ class TaskModel extends Task {
       'due_date': dueDate?.toIso8601String(),
       'position': position,
       'progress': progress,
-      'created_by': createdBy,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
+    if (id.isNotEmpty) {
+      map['id'] = id;
+    }
+    if (createdBy != null && createdBy!.isNotEmpty) {
+      map['created_by'] = createdBy;
+    }
+    return map;
   }
 
   factory TaskModel.fromEntity(Task task) {
@@ -88,7 +93,7 @@ class TaskCommentModel extends TaskComment {
   factory TaskCommentModel.fromJson(Map<String, dynamic> json) {
     return TaskCommentModel(
       id: json['id'] as String,
-      taskId: json['task_id'] as String,
+      taskId: (json['project_id'] ?? json['task_id']) as String,
       userId: json['user_id'] as String,
       content: json['content'] as String,
       createdAt: DateTime.parse(json['created_at'] as String),
@@ -96,13 +101,16 @@ class TaskCommentModel extends TaskComment {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'task_id': taskId,
+    final map = <String, dynamic>{
+      'project_id': taskId,
       'user_id': userId,
       'content': content,
       'created_at': createdAt.toIso8601String(),
     };
+    if (id.isNotEmpty) {
+      map['id'] = id;
+    }
+    return map;
   }
 
   factory TaskCommentModel.fromEntity(TaskComment comment) {

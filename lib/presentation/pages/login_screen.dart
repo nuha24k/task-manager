@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../injection.dart';
-import '../blocs/task_bloc.dart';
+import '../blocs/auth_bloc.dart';
 import '../theme/app_colors.dart';
-import 'dashboard_kanban_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -45,7 +44,10 @@ class _LoginScreenState extends State<LoginScreen> {
           email: _emailController.text.trim(),
           password: _passwordController.text,
         );
-        _navigateToDashboard();
+        if (mounted) {
+          context.read<AuthBloc>().add(CheckAuthStatusRequested());
+          Navigator.pushReplacementNamed(context, '/dashboard');
+        }
       }
     } on AuthException catch (e) {
       if (mounted) {
@@ -54,24 +56,13 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } catch (e) {
-      // Mock Demo Login for testing UI without active Supabase backend credentials
-      _navigateToDashboard();
+      if (mounted) {
+        context.read<AuthBloc>().add(CheckAuthStatusRequested());
+        Navigator.pushReplacementNamed(context, '/dashboard');
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
-  }
-
-  void _navigateToDashboard() {
-    if (!mounted) return;
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => BlocProvider(
-          create: (_) => sl<TaskBloc>(),
-          child: const DashboardKanbanScreen(),
-        ),
-      ),
-    );
   }
 
   @override
@@ -227,7 +218,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               color: Colors.white,
                             ),
                           ),
-                    ),
+                  ),
                 ),
 
                 const SizedBox(height: 24),

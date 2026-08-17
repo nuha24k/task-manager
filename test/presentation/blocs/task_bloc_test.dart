@@ -2,47 +2,36 @@ import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fpdart/fpdart.dart' hide Task;
 import 'package:mocktail/mocktail.dart';
-import 'package:task_management/domain/entities/task.dart';
 import 'package:task_management/domain/usecases/task_usecases.dart';
 import 'package:task_management/presentation/blocs/task_bloc.dart';
 
+import '../../helpers/dummy_data.dart';
+
 class MockWatchTasksUseCase extends Mock implements WatchTasksUseCase {}
 class MockCreateTaskUseCase extends Mock implements CreateTaskUseCase {}
+class MockUpdateTaskUseCase extends Mock implements UpdateTaskUseCase {}
 class MockReorderTaskUseCase extends Mock implements ReorderTaskUseCase {}
 class MockDeleteTaskUseCase extends Mock implements DeleteTaskUseCase {}
 
 void main() {
   late MockWatchTasksUseCase mockWatchTasksUseCase;
   late MockCreateTaskUseCase mockCreateTaskUseCase;
+  late MockUpdateTaskUseCase mockUpdateTaskUseCase;
   late MockReorderTaskUseCase mockReorderTaskUseCase;
   late MockDeleteTaskUseCase mockDeleteTaskUseCase;
   late TaskBloc taskBloc;
 
-  final tCreatedAt = DateTime.parse('2026-08-16T00:00:00.000Z');
-  final tUpdatedAt = DateTime.parse('2026-08-16T01:00:00.000Z');
-
-  final tTask = Task(
-    id: 't1',
-    workspaceId: 'ws1',
-    title: 'Test Task BLoC',
-    status: TaskStatus.todo,
-    priority: TaskPriority.high,
-    position: 0,
-    createdAt: tCreatedAt,
-    updatedAt: tUpdatedAt,
-  );
-
-  final List<Task> tTasks = [tTask];
-
   setUp(() {
     mockWatchTasksUseCase = MockWatchTasksUseCase();
     mockCreateTaskUseCase = MockCreateTaskUseCase();
+    mockUpdateTaskUseCase = MockUpdateTaskUseCase();
     mockReorderTaskUseCase = MockReorderTaskUseCase();
     mockDeleteTaskUseCase = MockDeleteTaskUseCase();
 
     taskBloc = TaskBloc(
       watchTasksUseCase: mockWatchTasksUseCase,
       createTaskUseCase: mockCreateTaskUseCase,
+      updateTaskUseCase: mockUpdateTaskUseCase,
       reorderTaskUseCase: mockReorderTaskUseCase,
       deleteTaskUseCase: mockDeleteTaskUseCase,
     );
@@ -117,6 +106,38 @@ void main() {
       expect: () => [
         isA<TaskError>(),
       ],
+    );
+  });
+
+  group('UpdateTaskRequested', () {
+    blocTest<TaskBloc, TaskState>(
+      'should call updateTaskUseCase when UpdateTaskRequested is added',
+      build: () {
+        when(() => mockUpdateTaskUseCase(any()))
+            .thenAnswer((_) async => const Right(null));
+        return taskBloc;
+      },
+      act: (bloc) => bloc.add(UpdateTaskRequested(tTask)),
+      expect: () => [],
+      verify: (_) {
+        verify(() => mockUpdateTaskUseCase(tTask)).called(1);
+      },
+    );
+
+    blocTest<TaskBloc, TaskState>(
+      'should emit TaskError when updateTaskUseCase returns Left failure',
+      build: () {
+        when(() => mockUpdateTaskUseCase(any()))
+            .thenAnswer((_) async => Left(Exception('Update failed')));
+        return taskBloc;
+      },
+      act: (bloc) => bloc.add(UpdateTaskRequested(tTask)),
+      expect: () => [
+        isA<TaskError>(),
+      ],
+      verify: (_) {
+        verify(() => mockUpdateTaskUseCase(tTask)).called(1);
+      },
     );
   });
 

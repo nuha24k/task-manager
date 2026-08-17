@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../../domain/entities/task.dart';
 import '../theme/app_colors.dart';
 
 class CreateTaskBottomSheet extends StatefulWidget {
   final String workspaceId;
+  final Task? taskToEdit;
+  final DateTime? initialDate;
   final Function(Task) onTaskCreated;
 
   const CreateTaskBottomSheet({
     super.key,
     required this.workspaceId,
+    this.taskToEdit,
+    this.initialDate,
     required this.onTaskCreated,
   });
 
@@ -17,13 +22,38 @@ class CreateTaskBottomSheet extends StatefulWidget {
 }
 
 class _CreateTaskBottomSheetState extends State<CreateTaskBottomSheet> {
-  final _titleController = TextEditingController();
-  final _descController = TextEditingController();
-  TaskPriority _priority = TaskPriority.medium;
-  TaskStatus _status = TaskStatus.todo;
+  late TextEditingController _titleController;
+  late TextEditingController _descController;
+  late TaskPriority _priority;
+  late TaskStatus _status;
+  DateTime? _dueDate;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController(text: widget.taskToEdit?.title ?? '');
+    _descController = TextEditingController(text: widget.taskToEdit?.description ?? '');
+    _priority = widget.taskToEdit?.priority ?? TaskPriority.medium;
+    _status = widget.taskToEdit?.status ?? TaskStatus.todo;
+    _dueDate = widget.taskToEdit?.dueDate ?? widget.initialDate ?? DateTime.now();
+  }
+
+  Future<void> _pickDueDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _dueDate ?? DateTime.now(),
+      firstDate: DateTime.now().subtract(const Duration(days: 365)),
+      lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
+    );
+    if (picked != null) {
+      setState(() => _dueDate = picked);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final isEditing = widget.taskToEdit != null;
+
     return Container(
       padding: EdgeInsets.only(
         top: 24,
@@ -50,15 +80,15 @@ class _CreateTaskBottomSheetState extends State<CreateTaskBottomSheet> {
             ),
           ),
           const SizedBox(height: 16),
-          const Text(
-            'Create New Task',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.darkText),
+          Text(
+            isEditing ? 'Edit Project' : 'Create New Project',
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.darkText),
           ),
           const SizedBox(height: 16),
           TextField(
             controller: _titleController,
             decoration: InputDecoration(
-              hintText: 'Task Title',
+              hintText: 'Project Title',
               filled: true,
               fillColor: AppColors.chipBackground,
               border: OutlineInputBorder(
@@ -82,6 +112,48 @@ class _CreateTaskBottomSheetState extends State<CreateTaskBottomSheet> {
             ),
           ),
           const SizedBox(height: 16),
+          
+          // Due Date Picker Button
+          GestureDetector(
+            onTap: _pickDueDate,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: AppColors.chipBackground,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.calendar_month_rounded, size: 20, color: AppColors.darkText),
+                      const SizedBox(width: 10),
+                      Text(
+                        _dueDate != null
+                            ? DateFormat('dd MMMM yyyy').format(_dueDate!)
+                            : 'Select Date',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: _dueDate != null ? FontWeight.bold : FontWeight.normal,
+                          color: _dueDate != null ? AppColors.darkText : AppColors.subText,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_dueDate != null)
+                    GestureDetector(
+                      onTap: () => setState(() => _dueDate = DateTime.now()),
+                      child: const Icon(Icons.refresh_rounded, size: 18, color: AppColors.subText),
+                    )
+                  else
+                    const Icon(Icons.arrow_drop_down, color: AppColors.subText),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
           Row(
             children: [
               Expanded(
@@ -107,30 +179,32 @@ class _CreateTaskBottomSheetState extends State<CreateTaskBottomSheet> {
                   },
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: DropdownButtonFormField<TaskStatus>(
-                  initialValue: _status,
-                  decoration: InputDecoration(
-                    labelText: 'Status',
-                    filled: true,
-                    fillColor: AppColors.chipBackground,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: BorderSide.none,
+              if (isEditing) ...[
+                const SizedBox(width: 12),
+                Expanded(
+                  child: DropdownButtonFormField<TaskStatus>(
+                    initialValue: _status,
+                    decoration: InputDecoration(
+                      labelText: 'Status',
+                      filled: true,
+                      fillColor: AppColors.chipBackground,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide.none,
+                      ),
                     ),
+                    items: TaskStatus.values
+                        .map((s) => DropdownMenuItem(
+                              value: s,
+                              child: Text(s.name.toUpperCase()),
+                            ))
+                        .toList(),
+                    onChanged: (val) {
+                      if (val != null) setState(() => _status = val);
+                    },
                   ),
-                  items: TaskStatus.values
-                      .map((s) => DropdownMenuItem(
-                            value: s,
-                            child: Text(s.name.toUpperCase()),
-                          ))
-                      .toList(),
-                  onChanged: (val) {
-                    if (val != null) setState(() => _status = val);
-                  },
                 ),
-              ),
+              ],
             ],
           ),
           const SizedBox(height: 20),
@@ -146,24 +220,25 @@ class _CreateTaskBottomSheetState extends State<CreateTaskBottomSheet> {
               ),
               onPressed: () {
                 if (_titleController.text.trim().isEmpty) return;
-                final newTask = Task(
-                  id: '',
+                final task = Task(
+                  id: widget.taskToEdit?.id ?? '',
                   workspaceId: widget.workspaceId,
                   title: _titleController.text.trim(),
                   description: _descController.text.trim().isEmpty ? null : _descController.text.trim(),
                   status: _status,
                   priority: _priority,
-                  position: 0,
-                  progress: 0.1,
-                  createdAt: DateTime.now(),
+                  dueDate: _dueDate ?? DateTime.now(),
+                  position: widget.taskToEdit?.position ?? 0,
+                  progress: widget.taskToEdit?.progress ?? 0.0,
+                  createdAt: widget.taskToEdit?.createdAt ?? DateTime.now(),
                   updatedAt: DateTime.now(),
                 );
-                widget.onTaskCreated(newTask);
+                widget.onTaskCreated(task);
                 Navigator.pop(context);
               },
-              child: const Text(
-                'Create Task',
-                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+              child: Text(
+                isEditing ? 'Save Changes' : 'Create Project',
+                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
           ),
