@@ -251,7 +251,7 @@ class _TaskDetailViewState extends State<_TaskDetailView> {
                           taskId: widget.task.id,
                           title: titleController.text.trim(),
                           projectName: projectController.text.trim().isEmpty
-                              ? 'Charty App'
+                              ? widget.task.title
                               : projectController.text.trim(),
                           priority: priority,
                           isCompleted: false,

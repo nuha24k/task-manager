@@ -168,7 +168,7 @@ class _DashboardKanbanScreenState extends State<DashboardKanbanScreen> {
                                 padding: const EdgeInsets.symmetric(horizontal: 20),
                                 children: [
                                   const SizedBox(height: 12),
-                                  _buildHeroBanner(),
+                                  _buildHeroBanner(tasks),
                                   const SizedBox(height: 24),
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -292,7 +292,26 @@ class _DashboardKanbanScreenState extends State<DashboardKanbanScreen> {
     );
   }
 
-  Widget _buildHeroBanner() {
+  Widget _buildHeroBanner(List<Task> tasks) {
+    final totalTasks = tasks.length;
+    final completedTasks = tasks.where((t) => t.status == TaskStatus.done).length;
+    final inProgressTasks = tasks.where((t) => t.status == TaskStatus.inProgress).length;
+    final todoTasks = tasks.where((t) => t.status == TaskStatus.todo).length;
+
+    final double avgProgress = tasks.isEmpty
+        ? 0.0
+        : (tasks.fold<double>(0.0, (sum, t) => sum + t.progress) / totalTasks);
+    final int progressPercent = (avgProgress * 100).round();
+
+    String statText = totalTasks > 0 ? '$progressPercent% Completed' : '0 Projects';
+    String statSubtitle = totalTasks > 0
+        ? '$completedTasks completed • $inProgressTasks in progress • $todoTasks to do'
+        : 'Tap + to add your first project';
+
+    if (completedTasks == totalTasks && totalTasks > 0) {
+      statSubtitle = 'All $totalTasks projects completed! 🎉';
+    }
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -322,31 +341,36 @@ class _DashboardKanbanScreenState extends State<DashboardKanbanScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '7h 34 m',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        statText,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
                       ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Your task almost done',
-                      style: TextStyle(fontSize: 12, color: Colors.white70),
-                    ),
-                  ],
+                      const SizedBox(height: 4),
+                      Text(
+                        statSubtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 12, color: Colors.white70),
+                      ),
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 10),
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: AppColors.accentYellow,
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: const Icon(Icons.access_time_filled_rounded, color: AppColors.darkText, size: 28),
+                  child: const Icon(Icons.analytics_rounded, color: AppColors.darkText, size: 26),
                 ),
               ],
             ),
