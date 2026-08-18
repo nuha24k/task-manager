@@ -30,6 +30,16 @@ class _StatisticsView extends StatefulWidget {
 class _StatisticsViewState extends State<_StatisticsView> {
   int _selectedPeriod = 0; // 0: Week, 1: Month, 2: Year
 
+  // The `progress` column on `projects` is never updated by the app (stays
+  // at its 0.0 default), so derive real progress from goal completion —
+  // this is the actual live data the stats should reflect.
+  double _taskProgress(Task task, List<TaskGoal> allGoals) {
+    final goalsForTask = allGoals.where((g) => g.taskId == task.id).toList();
+    if (goalsForTask.isEmpty) return task.progress;
+    final completed = goalsForTask.where((g) => g.isCompleted).length;
+    return completed / goalsForTask.length;
+  }
+
   bool _isInPeriod(DateTime? date, DateTime now) {
     if (date == null) return false;
     final local = date.toLocal();
@@ -92,14 +102,26 @@ class _StatisticsViewState extends State<_StatisticsView> {
 
                 final double avgProgress = tasksToDisplay.isEmpty
                     ? 0.0
-                    : (tasksToDisplay.fold<double>(0.0, (sum, t) => sum + t.progress) / totalTasksCount);
+                    : (tasksToDisplay.fold<double>(0.0, (sum, t) => sum + _taskProgress(t, allGoals)) / totalTasksCount);
                 final productivityRatePercent = (avgProgress * 100).toStringAsFixed(1);
 
-                // Weekday activity count for bar chart (1 = Mon ... 7 = Sun)
+                // Weekday productivity for bar chart (1 = Mon ... 7 = Sun).
+                // Only count items that are DONE *and* whose date has
+                // actually occurred — a task due Friday but marked done
+                // today (Monday) is not "Friday activity", and a day that
+                // hasn't happened yet can never show a tall bar.
                 final weekdayCounts = List.generate(7, (index) {
                   final weekday = index + 1;
-                  final taskMatch = tasksToDisplay.where((t) => (t.dueDate ?? t.createdAt).toLocal().weekday == weekday).length;
-                  final goalMatch = periodGoals.where((g) => (g.dueDate ?? g.createdAt).toLocal().weekday == weekday).length;
+                  final taskMatch = tasksToDisplay.where((t) {
+                    if (t.status != TaskStatus.done) return false;
+                    final date = (t.dueDate ?? t.createdAt).toLocal();
+                    return date.weekday == weekday && !date.isAfter(now);
+                  }).length;
+                  final goalMatch = periodGoals.where((g) {
+                    if (!g.isCompleted) return false;
+                    final date = (g.dueDate ?? g.createdAt).toLocal();
+                    return date.weekday == weekday && !date.isAfter(now);
+                  }).length;
                   return taskMatch + goalMatch;
                 });
 
@@ -299,7 +321,7 @@ class _StatisticsViewState extends State<_StatisticsView> {
                           return _buildDistributionTile(
                             task.title,
                             subtitleText,
-                            task.progress,
+                            _taskProgress(task, allGoals),
                             accentColor,
                           );
                         })

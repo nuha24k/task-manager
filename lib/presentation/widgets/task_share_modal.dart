@@ -20,8 +20,9 @@ class TaskShareModal extends StatelessWidget {
       builder: (ctx) => MultiBlocProvider(
         providers: [
           BlocProvider<InvitationBloc>(
-            create: (_) => sl<InvitationBloc>()
-              ..add(CreateInvitationRequested(taskId: task.id)),
+            create: (_) =>
+                sl<InvitationBloc>()
+                  ..add(CreateInvitationRequested(taskId: task.id)),
           ),
         ],
         child: TaskShareModal(task: task),
@@ -153,16 +154,26 @@ class TaskShareModal extends StatelessWidget {
                   ),
                   child: Column(
                     children: [
-                      const Icon(Icons.link_off_rounded, color: Colors.amber, size: 28),
+                      const Icon(
+                        Icons.link_off_rounded,
+                        color: Colors.amber,
+                        size: 28,
+                      ),
                       const SizedBox(height: 8),
                       const Text(
                         'Link Sharing Disabled',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       const Text(
                         'Previous invitation links have been deactivated.',
-                        style: TextStyle(fontSize: 12, color: AppColors.subText),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.subText,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 12),
@@ -175,11 +186,18 @@ class TaskShareModal extends StatelessWidget {
                         ),
                         onPressed: () {
                           context.read<InvitationBloc>().add(
-                                CreateInvitationRequested(taskId: task.id),
-                              );
+                            CreateInvitationRequested(taskId: task.id),
+                          );
                         },
-                        icon: const Icon(Icons.add_link_rounded, size: 16, color: Colors.white),
-                        label: const Text('Generate New Link', style: TextStyle(color: Colors.white)),
+                        icon: const Icon(
+                          Icons.add_link_rounded,
+                          size: 16,
+                          color: Colors.white,
+                        ),
+                        label: const Text(
+                          'Generate New Link',
+                          style: TextStyle(color: Colors.white),
+                        ),
                       ),
                     ],
                   ),
@@ -190,15 +208,20 @@ class TaskShareModal extends StatelessWidget {
                 child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.darkText,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   onPressed: () {
                     context.read<InvitationBloc>().add(
-                          CreateInvitationRequested(taskId: task.id),
-                        );
+                      CreateInvitationRequested(taskId: task.id),
+                    );
                   },
                   icon: const Icon(Icons.link_rounded, color: Colors.white),
-                  label: const Text('Create Invitation Link', style: TextStyle(color: Colors.white)),
+                  label: const Text(
+                    'Create Invitation Link',
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ),
               );
             },
@@ -276,7 +299,11 @@ class TaskShareModal extends StatelessWidget {
           ),
           child: Row(
             children: [
-              const Icon(Icons.link_rounded, color: AppColors.subText, size: 18),
+              const Icon(
+                Icons.link_rounded,
+                color: AppColors.subText,
+                size: 18,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -296,7 +323,10 @@ class TaskShareModal extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.darkText,
                   elevation: 0,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
@@ -307,7 +337,11 @@ class TaskShareModal extends StatelessWidget {
                     const SnackBar(
                       content: Row(
                         children: [
-                          Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                          Icon(
+                            Icons.check_circle_rounded,
+                            color: Colors.white,
+                            size: 18,
+                          ),
                           SizedBox(width: 8),
                           Text('Invitation link copied to clipboard!'),
                         ],
@@ -317,7 +351,11 @@ class TaskShareModal extends StatelessWidget {
                     ),
                   );
                 },
-                icon: const Icon(Icons.copy_rounded, size: 14, color: Colors.white),
+                icon: const Icon(
+                  Icons.copy_rounded,
+                  size: 14,
+                  color: Colors.white,
+                ),
                 label: const Text(
                   'Copy',
                   style: TextStyle(
@@ -350,7 +388,11 @@ class TaskShareModal extends StatelessWidget {
                     subject: 'Task Invitation: ${task.title}',
                   );
                 },
-                icon: const Icon(Icons.share_rounded, size: 16, color: AppColors.darkText),
+                icon: const Icon(
+                  Icons.share_rounded,
+                  size: 16,
+                  color: AppColors.darkText,
+                ),
                 label: const Text(
                   'Share via App',
                   style: TextStyle(
@@ -372,10 +414,14 @@ class TaskShareModal extends StatelessWidget {
               ),
               onPressed: () {
                 context.read<InvitationBloc>().add(
-                      RevokeInvitationRequested(invitationId: invitationId),
-                    );
+                  RevokeInvitationRequested(invitationId: invitationId),
+                );
               },
-              icon: const Icon(Icons.link_off_rounded, color: Colors.red, size: 18),
+              icon: const Icon(
+                Icons.link_off_rounded,
+                color: Colors.red,
+                size: 18,
+              ),
             ),
           ],
         ),

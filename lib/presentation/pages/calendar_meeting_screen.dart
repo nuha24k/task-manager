@@ -562,8 +562,9 @@ class _CalendarMeetingViewState extends State<_CalendarMeetingView> {
                         ? Border.all(color: AppColors.darkText, width: 1.5)
                         : null,
                   ),
-                  child: Stack(
-                    alignment: Alignment.center,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         '$dayNumber',
@@ -571,20 +572,22 @@ class _CalendarMeetingViewState extends State<_CalendarMeetingView> {
                           fontSize: 13,
                           fontWeight: isSelected || isToday || hasGoalOnDay ? FontWeight.bold : FontWeight.normal,
                           color: isSelected ? Colors.white : AppColors.darkText,
+                          height: 1.0,
                         ),
                       ),
-                      if (hasGoalOnDay)
-                        Positioned(
-                          bottom: 4,
-                          child: Container(
-                            width: 4,
-                            height: 4,
-                            decoration: BoxDecoration(
-                              color: isSelected ? Colors.white : AppColors.darkText,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ),
+                      const SizedBox(height: 3),
+                      SizedBox(
+                        width: 4,
+                        height: 4,
+                        child: hasGoalOnDay
+                            ? DecoratedBox(
+                                decoration: BoxDecoration(
+                                  color: isSelected ? Colors.white : AppColors.darkText,
+                                  shape: BoxShape.circle,
+                                ),
+                              )
+                            : null,
+                      ),
                     ],
                   ),
                 ),

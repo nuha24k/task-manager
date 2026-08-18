@@ -44,7 +44,9 @@ class _DashboardKanbanScreenState extends State<DashboardKanbanScreen> {
             context,
             token,
             onAccepted: () {
-              context.read<TaskBloc>().add(SubscribeToBoard(widget.workspaceId));
+              context.read<TaskBloc>().add(
+                SubscribeToBoard(widget.workspaceId),
+              );
             },
           );
         },
@@ -57,7 +59,6 @@ class _DashboardKanbanScreenState extends State<DashboardKanbanScreen> {
     DeepLinkHandler.dispose();
     super.dispose();
   }
-
 
   void _showCreateBottomSheet([Task? taskToEdit]) {
     final taskBloc = context.read<TaskBloc>();
@@ -86,12 +87,30 @@ class _DashboardKanbanScreenState extends State<DashboardKanbanScreen> {
     final taskBloc = context.read<TaskBloc>();
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => BlocProvider.value(
-          value: taskBloc,
-          child: TaskDetailScreen(task: task),
-        ),
+      _buildFadeSlideRoute(
+        BlocProvider.value(value: taskBloc, child: TaskDetailScreen(task: task)),
       ),
+    );
+  }
+
+  PageRouteBuilder _buildFadeSlideRoute(Widget page) {
+    return PageRouteBuilder(
+      transitionDuration: const Duration(milliseconds: 320),
+      reverseTransitionDuration: const Duration(milliseconds: 260),
+      pageBuilder: (context, animation, secondaryAnimation) => page,
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+        return FadeTransition(
+          opacity: curved,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, 0.06),
+              end: Offset.zero,
+            ).animate(curved),
+            child: child,
+          ),
+        );
+      },
     );
   }
 
@@ -108,7 +127,11 @@ class _DashboardKanbanScreenState extends State<DashboardKanbanScreen> {
               ),
             );
           }
-          Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            '/login',
+            (route) => false,
+          );
         }
       },
       child: Scaffold(
@@ -116,95 +139,24 @@ class _DashboardKanbanScreenState extends State<DashboardKanbanScreen> {
         body: SafeArea(
           child: Stack(
             children: [
-              IndexedStack(
-                index: _navIndex,
-                children: [
-                  Column(
-                    children: [
-                      _buildHeader(),
-                      Expanded(
-                        child: BlocBuilder<TaskBloc, TaskState>(
-                          builder: (context, state) {
-                            if (state is TaskLoading) {
-                              return const Center(
-                                child: CircularProgressIndicator(color: AppColors.blackButton),
-                              );
-                            }
-                            if (state is TaskError) {
-                              return Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                                      child: Text(
-                                        state.message,
-                                        textAlign: TextAlign.center,
-                                        style: const TextStyle(color: Colors.red),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    ElevatedButton(
-                                      onPressed: () {
-                                        context.read<TaskBloc>().add(SubscribeToBoard(widget.workspaceId));
-                                      },
-                                      child: const Text('Retry'),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }
-                            
-                            List<Task> tasks = [];
-                            if (state is TaskLoaded) {
-                              tasks = state.tasks;
-                            }
-
-                            return RefreshIndicator(
-                              onRefresh: () async {
-                                context.read<TaskBloc>().add(SubscribeToBoard(widget.workspaceId));
-                              },
-                              child: ListView(
-                                padding: const EdgeInsets.symmetric(horizontal: 20),
-                                children: [
-                                  const SizedBox(height: 12),
-                                  _buildHeroBanner(tasks),
-                                  const SizedBox(height: 24),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      const Text(
-                                        'Your task',
-                                        style: TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                          color: AppColors.darkText,
-                                        ),
-                                      ),
-                                      TextButton(
-                                        onPressed: () {},
-                                        child: const Text(
-                                          'See All',
-                                          style: TextStyle(color: AppColors.subText, fontSize: 13),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  _buildKanbanView(tasks),
-                                  const SizedBox(height: 140), // Spacing for floating navbar & FAB
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ],
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 260),
+                switchInCurve: Curves.easeOut,
+                switchOutCurve: Curves.easeIn,
+                transitionBuilder: (child, animation) => FadeTransition(
+                  opacity: animation,
+                  child: SlideTransition(
+                    position: Tween<Offset>(
+                      begin: const Offset(0, 0.03),
+                      end: Offset.zero,
+                    ).animate(animation),
+                    child: child,
                   ),
-                  const CalendarMeetingScreen(),
-                  const StatisticsScreen(),
-                  const UserProfileScreen(),
-                ],
+                ),
+                child: KeyedSubtree(
+                  key: ValueKey<int>(_navIndex),
+                  child: _buildTab(_navIndex),
+                ),
               ),
               // Floating Bottom Navigation Bar
               Positioned(
@@ -235,6 +187,114 @@ class _DashboardKanbanScreenState extends State<DashboardKanbanScreen> {
     );
   }
 
+  Widget _buildTab(int index) {
+    switch (index) {
+      case 1:
+        return const CalendarMeetingScreen();
+      case 2:
+        return const StatisticsScreen();
+      case 3:
+        return const UserProfileScreen();
+      case 0:
+      default:
+        return Column(
+          children: [
+            _buildHeader(),
+            Expanded(
+              child: BlocBuilder<TaskBloc, TaskState>(
+                builder: (context, state) {
+                  if (state is TaskLoading) {
+                    return const Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.blackButton,
+                      ),
+                    );
+                  }
+                  if (state is TaskError) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                            ),
+                            child: Text(
+                              state.message,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(color: Colors.red),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          ElevatedButton(
+                            onPressed: () {
+                              context.read<TaskBloc>().add(
+                                SubscribeToBoard(widget.workspaceId),
+                              );
+                            },
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  List<Task> tasks = [];
+                  if (state is TaskLoaded) {
+                    tasks = state.tasks;
+                  }
+
+                  return RefreshIndicator(
+                    onRefresh: () async {
+                      context.read<TaskBloc>().add(
+                        SubscribeToBoard(widget.workspaceId),
+                      );
+                    },
+                    child: ListView(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      children: [
+                        const SizedBox(height: 12),
+                        _buildHeroBanner(tasks),
+                        const SizedBox(height: 24),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Your task',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.darkText,
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () {},
+                              child: const Text(
+                                'See All',
+                                style: TextStyle(
+                                  color: AppColors.subText,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        _buildKanbanView(tasks),
+                        const SizedBox(
+                          height: 140,
+                        ), // Spacing for floating navbar & FAB
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+    }
+  }
+
   Widget _buildHeader() {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
@@ -243,7 +303,8 @@ class _DashboardKanbanScreenState extends State<DashboardKanbanScreen> {
 
         if (state is Authenticated) {
           userName = state.user.name;
-          if (state.user.avatarUrl != null && state.user.avatarUrl!.isNotEmpty) {
+          if (state.user.avatarUrl != null &&
+              state.user.avatarUrl!.isNotEmpty) {
             avatarUrl = state.user.avatarUrl!;
           }
         }
@@ -273,11 +334,17 @@ class _DashboardKanbanScreenState extends State<DashboardKanbanScreen> {
               Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.notifications_none_rounded, color: AppColors.darkText),
+                    icon: const Icon(
+                      Icons.notifications_none_rounded,
+                      color: AppColors.darkText,
+                    ),
                     onPressed: () {},
                   ),
                   IconButton(
-                    icon: const Icon(Icons.logout_rounded, color: AppColors.darkText),
+                    icon: const Icon(
+                      Icons.logout_rounded,
+                      color: AppColors.darkText,
+                    ),
                     tooltip: 'Logout',
                     onPressed: () {
                       context.read<AuthBloc>().add(SignOutRequested());
@@ -294,8 +361,12 @@ class _DashboardKanbanScreenState extends State<DashboardKanbanScreen> {
 
   Widget _buildHeroBanner(List<Task> tasks) {
     final totalTasks = tasks.length;
-    final completedTasks = tasks.where((t) => t.status == TaskStatus.done).length;
-    final inProgressTasks = tasks.where((t) => t.status == TaskStatus.inProgress).length;
+    final completedTasks = tasks
+        .where((t) => t.status == TaskStatus.done)
+        .length;
+    final inProgressTasks = tasks
+        .where((t) => t.status == TaskStatus.inProgress)
+        .length;
     final todoTasks = tasks.where((t) => t.status == TaskStatus.todo).length;
 
     final double avgProgress = tasks.isEmpty
@@ -303,7 +374,9 @@ class _DashboardKanbanScreenState extends State<DashboardKanbanScreen> {
         : (tasks.fold<double>(0.0, (sum, t) => sum + t.progress) / totalTasks);
     final int progressPercent = (avgProgress * 100).round();
 
-    String statText = totalTasks > 0 ? '$progressPercent% Completed' : '0 Projects';
+    String statText = totalTasks > 0
+        ? '$progressPercent% Completed'
+        : '0 Projects';
     String statSubtitle = totalTasks > 0
         ? '$completedTasks completed • $inProgressTasks in progress • $todoTasks to do'
         : 'Tap + to add your first project';
@@ -358,7 +431,10 @@ class _DashboardKanbanScreenState extends State<DashboardKanbanScreen> {
                         statSubtitle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 12, color: Colors.white70),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.white70,
+                        ),
                       ),
                     ],
                   ),
@@ -370,7 +446,11 @@ class _DashboardKanbanScreenState extends State<DashboardKanbanScreen> {
                     color: AppColors.accentYellow,
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: const Icon(Icons.analytics_rounded, color: AppColors.darkText, size: 26),
+                  child: const Icon(
+                    Icons.analytics_rounded,
+                    color: AppColors.darkText,
+                    size: 26,
+                  ),
                 ),
               ],
             ),
@@ -385,7 +465,10 @@ class _DashboardKanbanScreenState extends State<DashboardKanbanScreen> {
       return Container(
         padding: const EdgeInsets.all(32),
         alignment: Alignment.center,
-        child: const Text('No tasks found. Tap + to add one!', style: TextStyle(color: AppColors.subText)),
+        child: const Text(
+          'No tasks found. Tap + to add one!',
+          style: TextStyle(color: AppColors.subText),
+        ),
       );
     }
 
@@ -393,8 +476,10 @@ class _DashboardKanbanScreenState extends State<DashboardKanbanScreen> {
       children: tasks.asMap().entries.map((entry) {
         final index = entry.key;
         final task = entry.value;
-        final bgColor = index % 2 == 0 ? AppColors.secondaryCard : AppColors.primaryCard;
-        
+        final bgColor = index % 2 == 0
+            ? AppColors.secondaryCard
+            : AppColors.primaryCard;
+
         return LongPressDraggable<Task>(
           data: task,
           feedback: Material(
@@ -422,11 +507,13 @@ class _DashboardKanbanScreenState extends State<DashboardKanbanScreen> {
             onAcceptWithDetails: (details) {
               final draggedTask = details.data;
               if (draggedTask.id != task.id) {
-                context.read<TaskBloc>().add(TaskMoved(
-                      taskId: draggedTask.id,
-                      newStatus: task.status,
-                      newPosition: index,
-                    ));
+                context.read<TaskBloc>().add(
+                  TaskMoved(
+                    taskId: draggedTask.id,
+                    newStatus: task.status,
+                    newPosition: index,
+                  ),
+                );
               }
             },
             builder: (context, candidateData, rejectedData) {

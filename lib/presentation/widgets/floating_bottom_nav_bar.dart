@@ -13,29 +13,41 @@ class FloatingBottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12, left: 28, right: 28),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      decoration: BoxDecoration(
-        color: AppColors.blackButton,
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.16),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = MediaQuery.of(context).size.width;
+        final horizontalMargin = (screenWidth * 0.07).clamp(16.0, 32.0);
+        final bottomInset = MediaQuery.of(context).padding.bottom;
+
+        return Container(
+          margin: EdgeInsets.only(
+            bottom: 8 + (bottomInset > 0 ? 0 : 4),
+            left: horizontalMargin,
+            right: horizontalMargin,
           ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildNavItem(0, Icons.home_filled, 'Home'),
-          _buildNavItem(1, Icons.calendar_month_rounded, 'Calendar'),
-          _buildNavItem(2, Icons.bar_chart_rounded, 'Stats'),
-          _buildNavItem(3, Icons.person_outline_rounded, 'Profile'),
-        ],
-      ),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          decoration: BoxDecoration(
+            color: AppColors.blackButton,
+            borderRadius: BorderRadius.circular(999),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.16),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildNavItem(0, Icons.home_filled, 'Home'),
+              _buildNavItem(1, Icons.calendar_month_rounded, 'Calendar'),
+              _buildNavItem(2, Icons.bar_chart_rounded, 'Stats'),
+              _buildNavItem(3, Icons.person_outline_rounded, 'Profile'),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -46,10 +58,11 @@ class FloatingBottomNavBar extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        curve: Curves.easeOut,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected ? Colors.white.withValues(alpha: 0.18) : Colors.transparent,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(999),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -57,13 +70,13 @@ class FloatingBottomNavBar extends StatelessWidget {
             Icon(
               icon,
               color: isSelected ? AppColors.accentYellow : Colors.white60,
-              size: 20,
+              size: 18,
             ),
             const SizedBox(height: 2),
             Text(
               label,
               style: TextStyle(
-                fontSize: 10,
+                fontSize: 9,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 color: isSelected ? Colors.white : Colors.white60,
               ),

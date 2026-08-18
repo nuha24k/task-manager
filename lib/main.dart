@@ -2,19 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:task_management/presentation/blocs/auth_bloc.dart';
+import 'package:task_management/presentation/blocs/theme_cubit.dart';
 import 'injection.dart';
 import 'presentation/blocs/task_bloc.dart';
-import 'presentation/blocs/auth_bloc.dart';
 import 'presentation/pages/splash_screen.dart';
 import 'presentation/pages/login_screen.dart';
 import 'presentation/pages/dashboard_kanban_screen.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
+  await dotenv.load();
+
   await Supabase.initialize(
-    url: 'https://qffxmdfatpvfjaoqoqod.supabase.co',
-    publishableKey: 'sb_publishable_7vtyaW7IciX5qB3m-9bw8g_ZOCWMsRd',
+    url: dotenv.get('SUPABASE_URL'),
+    publishableKey: dotenv.get('PUBLISHABLE_KEY'),
   );
 
   await initInjection();
@@ -27,8 +31,11 @@ class TaskManagerApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider<AuthBloc>(
-      create: (context) => sl<AuthBloc>()..add(CheckAuthStatusRequested()),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider<AuthBloc>(create: (_) => sl<AuthBloc>()),
+        BlocProvider<ThemeCubit>(create: (_) => sl<ThemeCubit>()),
+      ],
       child: MaterialApp(
         title: 'TaskFlow Manager',
         debugShowCheckedModeBanner: false,
@@ -43,9 +50,9 @@ class TaskManagerApp extends StatelessWidget {
           '/': (context) => const SplashScreen(),
           '/login': (context) => const LoginScreen(),
           '/dashboard': (context) => BlocProvider(
-                create: (_) => sl<TaskBloc>(),
-                child: const DashboardKanbanScreen(),
-              ),
+            create: (_) => sl<TaskBloc>(),
+            child: const DashboardKanbanScreen(),
+          ),
         },
       ),
     );

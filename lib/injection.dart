@@ -1,5 +1,6 @@
 import 'package:get_it/get_it.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:task_management/presentation/blocs/theme_cubit.dart';
 import '../data/datasources/task_remote_data_source.dart';
 import '../data/datasources/invitation_remote_datasource.dart';
 import '../data/repositories/task_repository_impl.dart';
@@ -21,12 +22,13 @@ import '../presentation/blocs/invitation_bloc.dart';
 
 final sl = GetIt.instance;
 
-
 Future<void> initInjection({SupabaseClient? supabaseClient}) async {
   // External
   sl.registerLazySingleton<SupabaseClient>(
     () => supabaseClient ?? Supabase.instance.client,
   );
+
+  sl.registerFactory(() => ThemeCubit());
 
   // Data Sources
   sl.registerLazySingleton<TaskRemoteDataSource>(
@@ -40,14 +42,10 @@ Future<void> initInjection({SupabaseClient? supabaseClient}) async {
   sl.registerLazySingleton<TaskRepository>(
     () => TaskRepositoryImpl(remoteDataSource: sl()),
   );
-  sl.registerLazySingleton<AuthRepository>(
-    () => AuthRepositoryImpl(sl()),
-  );
+  sl.registerLazySingleton<AuthRepository>(() => AuthRepositoryImpl(sl()));
   sl.registerLazySingleton<InvitationRepository>(
-    () => InvitationRepositoryImpl(
-      remoteDataSource: sl(),
-      supabaseClient: sl(),
-    ),
+    () =>
+        InvitationRepositoryImpl(remoteDataSource: sl(), supabaseClient: sl()),
   );
 
   // UseCases
@@ -75,7 +73,6 @@ Future<void> initInjection({SupabaseClient? supabaseClient}) async {
   sl.registerLazySingleton(() => AcceptInvitationUseCase(sl()));
   sl.registerLazySingleton(() => RevokeInvitationUseCase(sl()));
 
-
   // BLoCs
   sl.registerFactory(
     () => TaskBloc(
@@ -97,10 +94,7 @@ Future<void> initInjection({SupabaseClient? supabaseClient}) async {
   );
 
   sl.registerFactory(
-    () => ChatBloc(
-      watchCommentsUseCase: sl(),
-      addCommentUseCase: sl(),
-    ),
+    () => ChatBloc(watchCommentsUseCase: sl(), addCommentUseCase: sl()),
   );
 
   sl.registerLazySingleton(
@@ -120,4 +114,3 @@ Future<void> initInjection({SupabaseClient? supabaseClient}) async {
     ),
   );
 }
-
